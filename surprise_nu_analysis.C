@@ -645,7 +645,7 @@
 	// BDT prediction; Compute output scores for binary classification and convert 
 	blip_E=blipE; dist2Vtx=dist; blip_X=blipX; blip_Y=blipY; blip_Z=blipZ;
 	blip_dX=dx; blip_dW=dw; blip_size=size; blip_density=density;
-	blip_dir_x=blip_rnn_dir_x->at(i); blip_dir_y=blip_rnn_dir_y->at(i); blip_dir_z=blip_rnn_dir_z->at(i);
+	//blip_dir_x=blip_rnn_dir_x->at(i); blip_dir_y=blip_rnn_dir_y->at(i); blip_dir_z=blip_rnn_dir_z->at(i);
 	double tmva_score = reader->EvaluateMVA( "BDT" ); double base_score = 0.01855186;
 	double XGBoost_score = 0.5 * TMath::Log( (1 + tmva_score)/(1 - tmva_score) ) - base_score;   // = atanh(tmva_score), sigmoid??
 	if( BDTcut && XGBoost_score <= -0.40 ) pred_sig = false;   // BDT score CUT
