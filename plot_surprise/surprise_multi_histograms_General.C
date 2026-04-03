@@ -27,7 +27,7 @@
 void surprise_multi_histograms_General(const char* file1, const char* file2, const char* file3, const char* file4, const char* config_file = "plot_configs.txt") {
 
     gStyle->SetOptStat(0);
-    const int numHists = 8;
+    const int numHists = 11;
   
     // Structure to hold variable set configuration
     struct VariableSet {
@@ -101,16 +101,17 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
 
     // Define colors array (same for all variable sets)
     Int_t colors[numHists] = {
-        kBlack,      // h1 - line only
+	kCyan+3,     // h1
         kGreen-2,    // h2
         kOrange+2,   // h3  
         kPink-5,     // h4
         kBlue-5,     // h5
         kYellow-5,   // h6
-        //kRed-5,      // h7
-        //kMagenta-5,  // h8
+        kRed-5,      // h7
+        kMagenta-5,  // h8
 	kAzure-5,    // h9
-	kViolet-5    // h10
+	kViolet-5,   // h10
+	kBlack       // h11 - line only
     };
 
     // Open or create output ROOT file (recreate mode to include all plots)
@@ -147,7 +148,7 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
         
         std::cout << "\n=== Processing variable set: " << variable_sets[var_set].name << " ===" << std::endl;
         
-        // Declare histogram array for this variable set
+        // Declare histog     // h1ram array for this variable set
         TH1F *hist_var[numHists];
         
         // Retrieve histograms using loop
@@ -193,7 +194,7 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
             hist_var[i]->SetLineWidth(3);
             
             // Special styling for first histogram (line only)
-            if(i == 0) {
+            if(i == 10) {
                 hist_var[i]->SetLineStyle(kDashed);
                 hist_var[i]->SetLineWidth(4);
                 hist_var[i]->SetMarkerColor(colors[i]);
@@ -213,19 +214,19 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
 
         // Add histograms to stack in specific order (indices 2,3,7,5,4,1,6)
         //int stack_order[7] = {1, 2, 3, 4, 5, 6, 7};
-        for(int i = 1; i < numHists; i++) {
+        for(int i = 0; i < numHists-1; i++) {
           stack->Add(hist_var[i]);
         }
 
-	double maxValue = hist_var[0]->GetMaximum();
+	double maxValue = hist_var[10]->GetMaximum();
 	stack->SetMaximum(maxValue * 1.1);
         
         stack->Draw("HIST");
-        hist_var[0]->Draw("same HIST"); // Draw the line histogram on top
+        hist_var[10]->Draw("same HIST"); // Draw the line histogram on top
 
         // Get percentage makeup
-	int Nbins = hist_var[0]->GetNbinsX();
-	double all = hist_var[0]->Integral(0,Nbins+1); double integrals[numHists];
+	int Nbins = hist_var[10]->GetNbinsX();
+	double all = hist_var[10]->Integral(0,Nbins+1); double integrals[numHists];
         for(int i = 0; i < numHists; i++) {
 	  Nbins = hist_var[i]->GetNbinsX();
 	  integrals[i] = hist_var[i]->Integral(0,Nbins+1);
@@ -248,19 +249,22 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
         
         // Add legend entries with hardcoded labels
         const char* legend_labels[numHists] = {
-            "all blips",
-            "(n,1p) primary neutrons",
-	    "(n, Np) primary neutrons",
-            "(n,p) non-primary neutrons",
-            "primary protons",
-            "photons, e+, and e-",
-            "other interactions",
-	    //"shower products",
-            "cosmics & radiogenics"
+            "other (truth-matched)",
+	    "primary (n,1p)",
+	    "primary (n,Np)",
+            "secondary (n,1p)",
+            "secondary (n,Np)",
+            "primary (n,gamma)",
+            "secondary (n,gamma)",
+	    "ncapture gamma",
+	    "mu capture gamma",
+            "cosmics & radiogenics",
+            "all blips"
         };
 
-        legend->AddEntry(hist_var[0], TString::Format("%s   (%.0f)", legend_labels[0], all), "l");
-        for(int i=1; i<numHists; i++) { legend->AddEntry(hist_var[i], TString::Format("%s = %.1f%%", legend_labels[i], (integrals[i]/all)*100), "f"); } //legend->AddEntry(hist_var[i], TString::Format("%s = %.3f%%   (%.0f)", legend_labels[i], (integrals[i]/all)*100, integrals[i]), "f"); }    //, TString::Format("%s", legend_labels[i]), "f"); }       
+        legend->AddEntry(hist_var[10], TString::Format("%s   (%.0f)", legend_labels[10], all), "l");
+        for(int i=1; i<numHists-1; i++) { legend->AddEntry(hist_var[i], TString::Format("%s = %.1f%%", legend_labels[i], (integrals[i]/all)*100), "f"); } //legend->AddEntry(hist_var[i], TString::Format("%s = %.3f%%   (%.0f)", legend_labels[i], (integrals[i]/all)*100, integrals[i]), "f"); }    //, TString::Format("%s", legend_labels[i]), "f"); }       
+	legend->AddEntry(hist_var[0], TString::Format("%s = %.1f%%", legend_labels[0], (integrals[0]/all)*100), "f");
         legend->Draw();
 
         c->Update(); c->Draw();
@@ -280,7 +284,7 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
         // new stack for log plot
         THStack *stack_log = new THStack("stack_log", Form("%s;%s;%s", variable_sets[var_set].histTitle.c_str(), 
                                                           variable_sets[var_set].hXaxisName.c_str(), variable_sets[var_set].hYaxisName.c_str()));
-        for(int i = 1; i < numHists; i++) { stack_log->Add(hist_var[i]); }
+        for(int i = 0; i < numHists-1; i++) { stack_log->Add(hist_var[i]); }
 
         stack_log->SetMinimum(0.1);  // or your desired minimum
 	stack_log->SetMaximum(maxValue * 2);  // 2x headroom for log scale
@@ -292,7 +296,7 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
 	else if( histName == "dw" ) { stack_log->SetMinimum(10); } else if( histName == "size" ) { stack_log->SetMinimum(3); }
 	else if( histName == "inShower" ) { stack_log->SetMaximum(pow(10,5)); } //stack_log->GetXaxis()->SetNdivisions(2, kFALSE); }
 
-	stack_log->Draw("HIST"); hist_var[0]->Draw("same HIST");
+	stack_log->Draw("HIST"); hist_var[10]->Draw("same HIST");
         legend->Draw();
         
         // log scale on y-axis
@@ -308,8 +312,8 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
         hist_var[1]->SetMinimum(0.1);
 	hist_var[1]->SetMaximum(maxValue * 2);  // 2x headroom for log scale
 
-	int styles[] = {1,2,9,10,7,1,2,9};
-	for (int i = 1; i < numHists; i++) {
+	int styles[] = {1,2,9,10,7,1,2,9,1};
+	for (int i = 0; i < numHists-1; i++) {
 
 	  hist_var[i]->SetFillStyle(0);
 	  hist_var[i]->SetLineWidth(6);
@@ -330,7 +334,7 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
         //hist_var[1]->SetMinimum(0.1);
         //hist_var[1]->SetMaximum(maxValue * 2);  // 2x headroom for log scale
 
-        for (int i = 1; i < numHists; i++) {
+        for (int i = 0; i < numHists-1; i++) {
 
           hist_var[i]->SetFillStyle(0);
           hist_var[i]->SetLineWidth(6);
