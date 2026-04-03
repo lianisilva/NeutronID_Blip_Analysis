@@ -1,0 +1,36 @@
+# Format: name histTitle tag hYaxisName hXaxisName SRUx1 SRUx2 printBox hist1 hist2 hist3 hist4 hist5 hist6 hist7 hist8
+
+recoVtxDist DistToRecoNuVtx distance nBlips Reco_Distance_cm 0 50 false recoVtxDist recoVtxDist_1 recoVtxDist_2 recoVtxDist_3 recoVtxDist_4 recoVtxDist_5 recoVtxDist_6 recoVtxDist_7 recoVtxDist_8 recoVtxDist_9 recoVtxDist_10
+
+blipE Reco_Energy energy nBlips Reco_Energy_MeVee 0 100 false blipE blipE_1 blipE_2 blipE_3 blipE_4 blipE_5 blipE_6 blipE_7 blipE_8 blipE_9 blipE_10
+
+cosAlignment Cos_Offset_Angle cos nBlips Cos_angle -1 1 false cosAlignment cosAlignment_1 cosAlignment_2 cosAlignment_3 cosAlignment_4 cosAlignment_5 cosAlignment_6 cosAlignment_7 cosAlignment_8 cosAlignment_9 cosAlignment_10
+
+alignmentAngle Offset_Angle angle nBlips angle -1 1 false alignmentAngle alignmentAngle_1 alignmentAngle_2 alignmentAngle_3 alignmentAngle_4 alignmentAngle_5 alignmentAngle_6 alignmentAngle_7 alignmentAngle_8 alignmentAngle_9 alignmentAngle_10
+
+resolution Angular_Resolution resolution nBlips Resolution_Degrees 0 90 false resolution resolution_1 resolution_2 resolution_3 resolution_4 resolution_5 resolution_6 resolution_7 resolution_8 resolution_9 resolution_10
+
+res_vs_E Res_vs_RecoE res_vs_E nBLips Energy_MeVee_Degrees 0 100 false res_vs_E res_vs_E_1 res_vs_E_2 res_vs_E_3 res_vs_E_4 res_vs_E_5 res_vs_E_6 res_vs_E_7 res_vs_E_8 res_vs_E_9 res_vs_E_10
+
+Edensity Energy_Density density nBlips Density_MeV_per_cm 0 15 false Edensity Edensity_1 Edensity_2 Edensity_3 Edensity_4 Edensity_5 Edensity_6 Edensity_7 Edensity_8 Edensity_9 Edensity_10
+
+proxTrkDist proximityToTrack proximity nBlips Proximity_Distance_cm 0 250 false proxTrkDist proxTrkDist_1 proxTrkDist_2 proxTrkDist_3 proxTrkDist_4 proxTrkDist_5 proxTrkDist_6 proxTrkDist_7 proxTrkDist_8 proxTrkDist_9 proxTrkDist_10
+
+byDeadWire By_Dead_Wire deadWire nBlips blip_is_near_death 0 2 false byDeadWire byDeadWire1 byDeadWire2 byDeadWire3 byDeadWire4 byDeadWire5 byDeadWire6 byDeadWire7 byDeadWire8 byDeadWire9 byDeadWire10
+
+cosmicDistToVtx cosmicProximity proximity nBlips Distance_cm 0 250 false cosmicDistToVtx cosmicDistToVtx_1 cosmicDistToVtx_2 cosmicDistToVtx_3 cosmicDistToVtx_4 cosmicDistToVtx_5 cosmicDistToVtx_6 cosmicDistToVtx_7 cosmicDistToVtx_8 cosmicDistToVtx_9 cosmicDistToVtx_10
+
+dx Blip_dx dx nBlips Reco_X_Width 0 15 false dx dx_1 dx_2 dx_3 dx_4 dx_5 dx_6 dx_7 dx_8 dx_9 dx_10
+
+dw Blip_dw dw nBlips Reco_YZ_Width 0 15 false dw dw_1 dw_2 dw_3 dw_4 dw_5 dw_6 dw_7 dw_8 dw_9 dw_10
+
+size Blip_Size size nBlips Reco_Blip_Size 0 15 false size size_1 size_2 size_3 size_4 size_5 size_6 size_7 size_8 size_9 size_10
+
+inShower Blip_isInShower inShower nBlips blip_is_in_shower 0 2 false inShower inShower_1 inShower_2 inShower_3 inShower_4 inShower_5 inShower_6 inShower_7 inShower_8 inShower_9 inShower_10
+
+energy_res Energy_Resolution E_res nBlips Energy_Resolution 0 100 false energy_res energy_res_1 energy_res_2 energy_res_3 energy_res_4 energy_res_5 energy_res_6 energy_res_7 energy_res_8 energy_res_9 energy_res_10
+
+BDT_score BDT_Signal_Prediction score nBlips BDT_score 0 15 false BDT_score BDT_score_1 BDT_score_2 BDT_score_3 BDT_score_4 BDT_score_5 BDT_score_6 BDT_score_7 BDT_score_8 BDT_score_9 BDT_score_10
+
+#Nhits Nhits_Blip Nhits nBlips Nhits_Blip 0 55 false Nhits Nhits_1 Nhits_2 Nhits_3 Nhits_4 Nhits_5 Nhits_6 Nhits_7 Nhits_8 Nhits_9
+
