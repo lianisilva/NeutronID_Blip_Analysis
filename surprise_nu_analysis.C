@@ -67,14 +67,26 @@
   std::vector<int>	   * blip_pl0_bydeadwire = 0;
   std::vector<int>	   * blip_pl1_bydeadwire = 0;
   std::vector<int>	   * blip_pl2_bydeadwire = 0;
-  std::vector<bool>        * blip_rnn_dir_isValid = 0;
-  std::vector<float>       * blip_rnn_dir_x = 0;
-  std::vector<float>       * blip_rnn_dir_y = 0;
-  std::vector<float>       * blip_rnn_dir_z = 0;
-  std::vector<float>       * blip_true_dir_x = 0;
-  std::vector<float>       * blip_true_dir_y = 0;
-  std::vector<float>       * blip_true_dir_z = 0;
-  std::vector<float>	   * blip_true_ncategory = 0;
+  std::vector<int>	   * blip_true_primancPDG = 0; // primary blip ancestor PDG
+  std::vector<int>	   * blip_true_primancG4ID = 0; // primary ancestor G4 TrackID
+  std::vector<bool>	   * blip_rnn_dir_isValid = 0; // Is RNN output valid?
+  std::vector<float>	   * blip_rnn_dir_x = 0;       // RNN-predicted blip direction (protons)
+  std::vector<float>	   * blip_rnn_dir_y = 0;       // RNN-predicted blip direction (protons)
+  std::vector<float>	   * blip_rnn_dir_z = 0;       // RNN-predicted blip direction (protons)
+  std::vector<float>	   * blip_true_dir_x = 0;   // Initial momentum direction of truth-matched particle
+  std::vector<float>	   * blip_true_dir_y = 0;   // Initial momentum direction of truth-matched particle
+  std::vector<float>	   * blip_true_dir_z = 0;   // Initial momentum direction of truth-matched particle
+  std::vector<int>	   * blip_true_ncategory = 0;   // Help categorize origin of blip
+	//  -9 = no truth match (data/overlay)
+	//  0  = truth-matched, but not falling in category
+	//  1  = primary (n,1p)
+	//  2  = primary (n,Np)
+	//  3  = secondary (n,1p)
+	//  4  = secondary (n,Np)
+	//  5  = primary (n,gamma)
+	//  6  = secondary (n,gamma)
+	//  7  = ncapture gamma
+	//  8  = mu capture gamma
 
   std::vector<int>	   * pfng2semlabel = 0;
 
@@ -116,7 +128,7 @@
   float  reco_nu_vtx_y;
   float  reco_nu_vtx_z;
 
-  const int numHists=10;
+  const int numHists=11;
   TH1D* h_blipE[numHists];
   TH1D* h_recoVtxDist[numHists];
   TH1D* h_cosAlignment[numHists];
@@ -239,7 +251,7 @@
   reader->AddVariable("blip_density", &blip_density);
   //reader->AddVariable("blip_dir", &blip_dir);
 
-  reader->BookMVA("BDT", "models_BDT/n_p_select_withDir.xml");
+  reader->BookMVA("BDT", "models_BDT/n_p_select_distPrecut.xml");
 
   // Set BDT variables directly from a saved file instead of importing entire model //
   // This process is slower and more involved, only use if there's difficulty with TMVA import //
@@ -292,7 +304,9 @@
     nuTree->SetBranchAddress("blip_pl0_bydeadwire", &blip_pl0_bydeadwire);
     nuTree->SetBranchAddress("blip_pl1_bydeadwire", &blip_pl1_bydeadwire);
     nuTree->SetBranchAddress("blip_pl2_bydeadwire", &blip_pl2_bydeadwire);
-
+    //nuTree->SetBranchAddress("blip_true_primancPDG",&blip_true_primancPDG); 
+    //nuTree->SetBranchAddress("blip_true_primancG4ID",&blip_true_primancG4ID);
+    nuTree->SetBranchAddress("blip_true_ncategory", &blip_true_ncategory);
     nuTree->SetBranchAddress("blip_rnn_dir_isValid",&blip_rnn_dir_isValid);
     nuTree->SetBranchAddress("blip_rnn_dir_x",	    &blip_rnn_dir_x);
     nuTree->SetBranchAddress("blip_rnn_dir_y",	    &blip_rnn_dir_y);
@@ -578,14 +592,14 @@
 
       }//end particle loop
 
-
       // cut booleans for ease of selection
       bool preselect = true;  bool nuProximity = true; bool vtxIso = false;
-      bool energyCut = false; bool densityCut = false; bool BDTcut = true;
+      bool energyCut = false; bool densityCut = false; bool BDTcut = true; bool shrCut = true;
       //============================== BLIP LOOP ==============================//
       for(size_t i=0; i<nblips_saved; i++){
 
-        totalBlips++; category=6;   // default to "other" if not assigned
+        totalBlips++; category=blip_true_ncategory->at(i);
+	if( category == -9 ) category = 9;
 
 	float blipX = blip_x->at(i), blipY = blip_y->at(i), blipZ = blip_z->at(i);
 	if( minX > blipX ) minX=blipX; if( minY > blipY ) minY=blipY; if( minZ > blipZ ) minZ=blipZ;
@@ -606,7 +620,9 @@
 
 	int pdg = blip_true_pdg->at(i);	int g4id = blip_true_g4id->at(i);
 
-	int allIDX = -9; bool isPrimary; 
+	// This could be dangerous when accessing vectors, may want to switch to better logic
+	// Can't just do "if( g4id < 0 ) {" to set these since photons,e+,e- also have no mc_truth info. saved
+	int allIDX = -9; bool isPrimary = false; 
 	int mom_trkID = -9; bool mom_isPrimary = false;
 	int mom_allIDX = -9; int mom_pdg = -9;
 	if( map_allTrkID_partIDX.count(g4id) != 0 ) {
@@ -635,7 +651,11 @@
 	if( vtxIso && dist <= 5 ) continue;
 	if( energyCut && blipE <= 3 ) continue;
 	if( densityCut && density < Fit_Function_PID_Cut(blipE) ) isProton = false; //if( blipE <= 10 && density < cutoff ) isProton = false;
-	for( const auto& [vtx, P, E] : shr_vtx_P_E ) { isInShower = IsWithinShowerCone(vtx, P, blip_loc, 90.0 ); }
+	if( shrCut ) {
+	  for( const auto& [vtx, P, E] : shr_vtx_P_E ) {
+	    if( IsWithinShowerCone(vtx, P, blip_loc, 90.0) ) { isInShower = true; break; }
+	  }
+	}
 	// To manually check if a blip is deemed to be inside any shower in this event:
 	  //std::cout<<"\nShower vertex: ("<<vtx.X()<<", "<<vtx.Y()<<", "<<vtx.Z()<<")"
 	  //<<"\nShower direction: ("<<P.X()<<", "<<P.Y()<<", "<<P.Z()<<")"; }
@@ -645,10 +665,10 @@
 	// BDT prediction; Compute output scores for binary classification and convert 
 	blip_E=blipE; dist2Vtx=dist; blip_X=blipX; blip_Y=blipY; blip_Z=blipZ;
 	blip_dX=dx; blip_dW=dw; blip_size=size; blip_density=density;
-	blip_dir_x=blip_rnn_dir_x->at(i); blip_dir_y=blip_rnn_dir_y->at(i); blip_dir_z=blip_rnn_dir_z->at(i);
-	double tmva_score = reader->EvaluateMVA( "BDT" ); double base_score = 0.01855186;
+	//blip_dir_x=blip_rnn_dir_x->at(i); blip_dir_y=blip_rnn_dir_y->at(i); blip_dir_z=blip_rnn_dir_z->at(i);
+	double tmva_score = reader->EvaluateMVA( "BDT" ); double base_score = 0.0048942147;
 	double XGBoost_score = 0.5 * TMath::Log( (1 + tmva_score)/(1 - tmva_score) ) - base_score;   // = atanh(tmva_score), sigmoid??
-	if( BDTcut && XGBoost_score <= -0.40 ) pred_sig = false;   // BDT score CUT
+	if( BDTcut && XGBoost_score <= -2.5 ) pred_sig = false;   // BDT score CUT
 
         // RNN model prediction
         double res_angle = -1.0; TVector3 reco_dir; float align_angle, offset;
@@ -661,64 +681,14 @@
 
           //if( offset < 0.25 ) continue;   // hard direction cut
 
-          if( !isInShower && !nearDeath && pred_sig && isProton ) {
-            h_cosAlignment[0]->Fill(offset); h_alignmentAngle[0]->Fill(align_angle);
-            if( g4id < 0 ) { h_cosAlignment[7]->Fill(offset); h_alignmentAngle[7]->Fill(align_angle); }
-	    else if( abs(pdg) == 11 || abs(pdg) == 22 ) {
-	      h_cosAlignment[5]->Fill(offset); h_alignmentAngle[5]->Fill(align_angle);
-	      h_resolution[5]->Fill(res_angle); h_res_vs_E[5]->Fill(trueE, res_angle);
-	    }
-            else { h_resolution[0]->Fill(res_angle); h_res_vs_E[0]->Fill(trueE, res_angle); }
-          }
         }
 
-	// all selected blips
-	if( !isInShower && isProton ) {
-	  if( !nearDeath ) {
-	    if( pred_sig ) {
-	      totalSelectedBlips++;
-	      h_recoVtxDist[0]->Fill(dist); h_blipE[0]->Fill(blipE);
-	      h_Edensity[0]->Fill(density); h_energy_res[0]->Fill(E_res);
-	      h_proxTrkDist[0]->Fill(dist2Trk); h_cosmicDistToVtx[0]->Fill(cosmicProx);
-	      h_dx[0]->Fill(dx); h_dw[0]->Fill(dw);
-	      h_size[0]->Fill(size);
-	    } h_BDT_score[0]->Fill(XGBoost_score);
-	  } h_byDeadWire[0]->Fill(nearDeath);
-	} if( !nearDeath && isProton && pred_sig ) { h_inShower[0]->Fill(isInShower); }
+	// cosmics
+        if( g4id < 0 && !isInShower && !nearDeath && pred_sig && blipE <= 10 ) { gr_cosmic_E_ds->SetPoint(gr_cosmic_E_ds->GetN(), blipE, density); }
 
-	if( g4id < 0 ) {   // cosmic separation
-          if( !isInShower ) {
-	    if( !nearDeath ) {
-	      if( pred_sig ) {
-		if( blipE <= 10 ) { gr_cosmic_E_ds->SetPoint(gr_cosmic_E_ds->GetN(), blipE, density); }
-		if( isProton ) {
-		  h_recoVtxDist[7]->Fill(dist); h_blipE[7]->Fill(blipE);
-		  h_Edensity[7]->Fill(density); h_energy_res[7]->Fill(E_res);
-		  h_proxTrkDist[7]->Fill(dist2Trk); h_cosmicDistToVtx[7]->Fill(cosmicProx);
-		  h_dx[7]->Fill(dx); h_dw[7]->Fill(dw); h_size[7]->Fill(size);
-		}
-	      } if( isProton ) h_BDT_score[7]->Fill(XGBoost_score);
-	    } if( isProton ) h_byDeadWire[7]->Fill(nearDeath);
-	  } if( !nearDeath && isProton && pred_sig ) h_inShower[7]->Fill(isInShower);
-	  continue;
-	}
-
-	if( abs(pdg) != 11 && abs(pdg) != 22 ) { matchedBlips++;
-	} else {   // photons, electrons, and positrons
-          if( !isInShower ) {
-	    if( !nearDeath ) {
-	      if( pred_sig ) {
-		if( blipE <= 10 ) gr_elec_E_ds->SetPoint(gr_elec_E_ds->GetN(), blipE, density);
-		if( isProton ) {
-		  h_recoVtxDist[5]->Fill(dist); h_blipE[5]->Fill(blipE);
-		  h_Edensity[5]->Fill(density); h_energy_res[5]->Fill(E_res);
-		  h_proxTrkDist[5]->Fill(dist2Trk); h_cosmicDistToVtx[5]->Fill(cosmicProx);
-		  h_dx[5]->Fill(dx); h_dw[5]->Fill(dw); h_size[5]->Fill(size);
-		}
-	      } if( isProton ) h_BDT_score[5]->Fill(XGBoost_score);
-	    } if( isProton ) h_byDeadWire[5]->Fill(nearDeath);
-	  } if( !nearDeath && isProton && pred_sig ) { h_inShower[5]->Fill(isInShower); }
-	  continue;
+	if( abs(pdg) != 11 && abs(pdg) != 22 ) { matchedBlips++; }
+	else if( !isInShower && !nearDeath && pred_sig && blipE <= 10 ) {   // photons, electrons, and positrons
+	  gr_elec_E_ds->SetPoint(gr_elec_E_ds->GetN(), blipE, density);
 	}
 
 	//if( blip_true_pdg->at(i) != all_mc_pdg->at(allIDX) ) std::cout<<"WOAH, HOLD UR HORSES! blip_true_pdg && all_mc_pdg don't match!!"<<endl;
@@ -730,40 +700,52 @@
 	//h_maxWires->Fill(maxWires);
 
         // PROTONS
-	if( pdg == 2212 ) {
-	  //std::cout<<"Proton mom PDG: "<<mom_pdg<<" Mom is primary: "<<mom_isPrimary<<endl;
-	  if( isPrimary ) { category=4;   // primary protons
-	  } else if( mom_pdg == 2112 ) {   // non-primary protons from neutron mom (should all be nIne)
-	    if( mom_isPrimary ) {   // from *primary* neutron mom
-	      if( blipE <= 10 && !nearDeath && !isInShower && pred_sig ) gr_signal_E_ds->SetPoint(gr_signal_E_ds->GetN(), blipE, density);
-	      if( !nearDeath && !isInShower && isProton && pred_sig ) {
-		signal_blips++; h_foundNeutronE->Fill( (all_mc_E->at(mom_allIDX) - 0.93957)*1000 );
-		if( map_n_p[mom_trkID][0] == g4id ) neutronIDprBlips++;
-	      }
-	      if( map_n_p.at(mom_trkID).size() == 1 ) { category=1;   // 1p from primary neutron moms
-	      } else { category=2; }   // Np from primary neutron moms
-	    } else { category=3; }   // non-primary neutron mom
-          }
+	if( pdg == 2212 && !isPrimary && mom_pdg == 2112 && mom_isPrimary ) {   // non-primary protons from primary neutron moms (should all be nIne)
+	  if( blipE <= 10 && !nearDeath && !isInShower && pred_sig ) gr_signal_E_ds->SetPoint(gr_signal_E_ds->GetN(), blipE, density);
+	  if( !nearDeath && !isInShower && isProton && pred_sig ) {
+	    signal_blips++; h_foundNeutronE->Fill( (all_mc_E->at(mom_allIDX) - 0.93957)*1000 );
+	    if( map_n_p[mom_trkID][0] == g4id ) neutronIDprBlips++;
+	  }
 	}
 
-	//if( category == 4 ) std::cout<<"Primary proton energy resolution: "<<E_res<<std::endl;
-	//if( category == 6 ) { std::cout<<"\nOH NAUR!, naur catagaury set ;( \nPDG = "<<p_pdg<<std::endl; }
+	//if( category == 0 ) { std::cout<<"\nOH NAUR!, naur catagaury set ;( \nPDG = "<<p_pdg<<std::endl; }
 
 	if( isProton ) {
 	  if( !isInShower ) {
 	    if( !nearDeath ) {
 	      if( pred_sig ) {
+		totalSelectedBlips++;   // RNN doesn't need to be valid since we just put it in the BDT???
+		// Fill all blips
+                h_recoVtxDist[10]->Fill(dist); h_blipE[10]->Fill(blipE);
+                h_Edensity[10]->Fill(density); h_energy_res[10]->Fill(E_res);
+                h_proxTrkDist[10]->Fill(dist2Trk); h_cosmicDistToVtx[10]->Fill(cosmicProx);
+                h_dx[10]->Fill(dx); h_dw[10]->Fill(dw); h_size[10]->Fill(size);
+		// Fill specific categories
 		h_recoVtxDist[category]->Fill(dist); h_blipE[category]->Fill(blipE);
 		h_Edensity[category]->Fill(density); h_energy_res[category]->Fill(E_res);
 		h_proxTrkDist[category]->Fill(dist2Trk); h_cosmicDistToVtx[category]->Fill(cosmicProx);
 		h_dx[category]->Fill(dx); h_dw[category]->Fill(dw); h_size[category]->Fill(size);
 		if( blip_rnn_dir_isValid->at(i) ) {
+                  h_cosAlignment[10]->Fill(offset); h_alignmentAngle[10]->Fill(align_angle);
 		  h_cosAlignment[category]->Fill(offset); h_alignmentAngle[category]->Fill(align_angle);
-		  h_resolution[category]->Fill(res_angle); h_res_vs_E[category]->Fill((all_mc_E->at(allIDX)-0.93827)*1000, res_angle);
+		  if( allIDX >= 0 && g4id >= 0 ) {
+                    h_resolution[10]->Fill(res_angle);
+                    h_res_vs_E[10]->Fill((all_mc_E->at(allIDX)-0.93827)*1000, res_angle);
+		    h_resolution[category]->Fill(res_angle);
+		    h_res_vs_E[category]->Fill((all_mc_E->at(allIDX)-0.93827)*1000, res_angle);
+		  }
 		}
-	      } h_BDT_score[category]->Fill(XGBoost_score);
-	    } h_byDeadWire[category]->Fill(nearDeath);
-	  } if( !nearDeath && pred_sig ) { h_inShower[category]->Fill(isInShower); }
+	      }
+	      h_BDT_score[10]->Fill(XGBoost_score);
+	      h_BDT_score[category]->Fill(XGBoost_score);
+	    }
+            h_byDeadWire[10]->Fill(nearDeath);
+	    h_byDeadWire[category]->Fill(nearDeath);
+	  }
+	  if( !nearDeath && pred_sig ) {
+            h_inShower[10]->Fill(isInShower);
+	    h_inShower[category]->Fill(isInShower);
+	  }
 	}
 
       }//end blip loop
