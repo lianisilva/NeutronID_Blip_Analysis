@@ -1,0 +1,42 @@
+# Ignore:
+
+# ROOT files (large, binary — store on experiment servers)
+*.root
+analyze_neutrons/info_hits.txt
+# Compiled objects and libraries
+*.o
+*.so
+*.a
+*.dylib
+*.d
+# ROOT dictionaries
+*_rdict.pcm
+*Dict.cxx
+*Dict.h
+# Executables
+bin/
+# Python cache and environments
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+*.egg-info/
+.venv/
+env/
+# Job outputs and logs
+*.log
+analyze_neutrons/info_hits.txt
+logs/
+condor_logs/
+# macOS metadata
+.DS_Store
+.AppleDouble
+# VSCode
+.vscode/
+*.code-workspace
+# GENIE build output — source only, not compiled
+GENIE/Generator/tmp/
+GENIE/Generator/obj/
+GENIE/Generator/lib/
+
+

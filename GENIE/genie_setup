@@ -1,0 +1,31 @@
+#!/bin/bash
+
+export myArea=/Users/liani/nu_work/GENIE
+
+export GENIE=$myArea/Generator
+
+# Fix: Point to the actual ROOT installation directory
+export ROOTSYS=/Users/liani/root   #/usr/local/Cellar/root/6.36.00
+export LHAPATH=$myArea/LHAPDF-6.2.3
+
+echo "works"
+
+export PATH=$PATH:\
+$ROOTSYS/bin:\
+$GENIE/bin
+
+echo "do it works?"
+
+# On macOS, use DYLD_LIBRARY_PATH instead of LD_LIBRARY_PATH
+export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:\
+/usr/local/Cellar/log4cpp:\
+/usr/local/Cellar/libxml2:\
+$myArea/LHAPDF-6.2.3:\
+$myArea/Generator/src/scripts/build/ext/v6_428:\
+$ROOTSYS/lib/root:\
+$GENIE/lib
+
+echo "yuh, works"
+
+# Source ROOT's environment setup
+#source $ROOTSYS/bin/thisroot.sh

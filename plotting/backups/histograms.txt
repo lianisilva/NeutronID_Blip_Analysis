@@ -1,0 +1,7 @@
+cos_blip cos tag1 Nblips/events |cos(ang)| -1 1 false
+cos_neutron cos tag2 Nblips/events |cos(ang)| -1 1 false
+cos_pr cos tag3 Nblips/events |cos(ang)| -1 1 false
+cos_nOther_gamma cos tag4 Nblips/events |cos(ang)| -1 1 false
+cos_nIne_gamma cos tag5 Nblips/events |cos(ang)| -1 1 false
+cos_nCap_gamma cos tag6 Nblips/events |cos(ang)| -1 1 false
+
