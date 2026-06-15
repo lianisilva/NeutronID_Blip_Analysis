@@ -1,0 +1,4 @@
+blipE Blip_Energy tag1 Nblips/events MeV 0 25 false
+nblips_vs_vtxDist Blip_Distance_to_Neutrino_Vertex tag2 Nblips/events cm 0 300 false
+maxWires Max_Wires_per_Blip_on_one_Plane tag3 Nblips/events Nwires 0 18 false
+BlipsPerEvent nBlips_Per_Event tag4 Nblips/events nBlips 0 300 false
