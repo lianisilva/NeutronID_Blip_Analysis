@@ -3,6 +3,7 @@
 # ROOT files (large, binary — store on experiment servers)
 *.root
 analyze_neutrons/info_hits.txt
+*.swp
 # Compiled objects and libraries
 *.o
 *.so
