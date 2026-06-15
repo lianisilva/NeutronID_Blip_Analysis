@@ -1,0 +1,5 @@
+ProcessNTuples /exp/uboone/data/users/birwin/PeleeNTuples/Run1_Run12_neutron_blip_ntuple_jh_v86_ntuple_ana.root CC1muNp0piNn /pnfs/uboone/persistent/users/mhernan/PostProcessedNTuples/temp_PostProcess/Run1_Beam_On_POST_multisim.root
+ProcessNTuples /exp/uboone/data/users/birwin/PeleeNTuples/Run2_Run12_neutron_blip_ntuple_jh_v86_ntuple_ana.root CC1muNp0piNn /pnfs/uboone/persistent/users/mhernan/PostProcessedNTuples/temp_PostProcess/Run2_Beam_On_POST_multisim.root
+ProcessNTuples /exp/uboone/data/users/birwin/PeleeNTuples/Run3_Run3_neutron_blip_ntuple_jh_1_ntuple_ana.root CC1muNp0piNn /pnfs/uboone/persistent/users/mhernan/PostProcessedNTuples/temp_PostProcess/Run3_Beam_On_POST_multisim.root
+ProcessNTuples /exp/uboone/data/users/birwin/PeleeNTuples/run4_BNB_Beam_On.root CC1muNp0piNn /pnfs/uboone/persistent/users/mhernan/PostProcessedNTuples/temp_PostProcess/Run4_Beam_On_POST_multisim.root
+ProcessNTuples /exp/uboone/data/users/birwin/PeleeNTuples/Run5_Run45_BNB_Beam_On_neutron_blip_PeLEE_ntuple_ana.root CC1muNp0piNn /pnfs/uboone/persistent/users/mhernan/PostProcessedNTuples/temp_PostProcess/Run5_Beam_On_POST_multisim.root

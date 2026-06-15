@@ -1,0 +1,20 @@
+How to run each macro
+
+g++ -std=c++17 file_name.cc -o file_name $(root-config --cflags --libs)
+./file_name
+
+FakeDataUnfolder_file_plotter.cc // file to create final 1-bin xsec plot
+Unfolder_file_plotter.cc // file to create final 1-bin xsec plot
+
+mastbaum_ntuple_plotter.cc // holds the predictions for other generators that I compare the 1-bin xsec to
+
+MicroBooNE_1bin_Prediction.cc // microboone tune prediction
+
+EventSelectionCutPlotter.cc (for event level plots)
+
+Secondary_Proton_ES_Plots.cc (for PFP level plots)
+
+
+
+
+
