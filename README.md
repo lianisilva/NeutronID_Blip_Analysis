@@ -1,6 +1,7 @@
 WELCOME!
 
 This is the ENTIRETY of my "neutron identification with proton blips" analysis code excluding the prepared/output .root files, .txt files and other types of files you can find in the .gitignore.
+Most of the ROOT dataset files that are referenced within the code can be found at /exp/uboone/data/users/wforeman/uboonecode-mcc10/anatrees/, with access to the MicroBooNE GPVMs.
 
 The main/most recently updated folder is the "pelee" folder which contains all the code needed to make our final primary (n,p) selection.
 It also contains "xsec_analyzer" which is mostly code from others with tweaks/additions to make it work for our analysis.
