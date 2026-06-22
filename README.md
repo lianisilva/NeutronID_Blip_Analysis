@@ -20,3 +20,5 @@ This document also explains how to input blips into the BDT which gives you a sc
 
 P.S. In "analyze_neutrons/accessory_macros" I started making a "Visualizer3D.C" script that uses true particle variables to try to create EVD-like 3D vizualizations of certain interactions.
 It would be very nice to have this working so that you can easily investigate anomalous interaction cases, but I never had the time to finish it, you who inherits this analysis might want to give it a try!
+
+GOOD LUCK !
