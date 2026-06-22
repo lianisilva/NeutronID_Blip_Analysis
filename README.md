@@ -9,7 +9,10 @@ It also contains "xsec_analyzer" which is mostly code from others with tweaks/ad
 
 The "analyze_neutrons" folder is from before we switched to the PeLEE NTuples and instead use a specifically curated run 3 overlay root file.
 This folder also includes our blip validation work ("validation") and the "hit_info.C" macro which was used to create the .txt file input for the RNN before we used Libtorch/had RNN variables directly in our NTuples.
+For more information on how to optimally use the RNN remotely see this document -> https://docs.google.com/document/d/1GcmniWuQfjSWTkSgCd5PSh_i_p5iKdFHEq_olMJ1syc/edit?usp=sharing.
+Though, this workflow procedure is depreciated as it requires local ROOT file (passed to)-> Jupyter notebook model, creates ROOT file (passed to)-> local ROOT macro to use in the analysis.
+Therefore, the only remaining use case would be for dedicated RNN improvement testing, i.e. testing several different model tweaks before choosing the best model to integrate into the selection.
 
-Speaking of, we have an "rnn_inference" folder here which contains all of the scripts needed to run the RNN model within ROOT/C++ utilizing the LibTorch library.
-More information on how to do this is in this guide document -> https://docs.google.com/document/d/1PF5z-vx-rHSHfrryYS5lpSa-mMfgve9uZSoTvvZcdKU/edit?pli=1&tab=t.0.
+The best way to use the RNN model is to locally run RNN inference within ROOT/C++ utilizing the LibTorch library, the "rnn_inference" folder contains all of the scripts needed to do this.
+More information on how exactly to set this up is in this guide document -> https://docs.google.com/document/d/1PF5z-vx-rHSHfrryYS5lpSa-mMfgve9uZSoTvvZcdKU/edit?usp=sharing.
 This document also explains how to input blips into the BDT which gives you a score based on how signal or background-like the blip is.
