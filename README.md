@@ -16,3 +16,7 @@ Therefore, the only remaining use case would be for dedicated RNN improvement te
 The best way to use the RNN model is to locally run RNN inference within ROOT/C++ utilizing the LibTorch library, the "rnn_inference" folder contains all of the scripts needed to do this.
 More information on how exactly to set this up is in this guide document -> https://docs.google.com/document/d/1PF5z-vx-rHSHfrryYS5lpSa-mMfgve9uZSoTvvZcdKU/edit?usp=sharing.
 This document also explains how to input blips into the BDT which gives you a score based on how signal or background-like the blip is.
+
+
+P.S. In "analyze_neutrons/accessory_macros" I started making a "Visualizer3D.C" script that uses true particle variables to try to create EVD-like 3D vizualizations of certain interactions.
+It would be very nice to have this working so that you can easily investigate anomalous interaction cases, but I never had the time to finish it, you who inherits this analysis might want to give it a try!
