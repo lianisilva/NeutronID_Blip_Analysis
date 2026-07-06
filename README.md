@@ -8,6 +8,7 @@ It also contains "xsec_analyzer" which is mostly code from others with tweaks/ad
 (The code from others is that from Steven's framework as well as from Burke and Miguel's work on proton tracks for neutron ID.)
 
 The "analyze_neutrons" folder is from before we switched to the PeLEE NTuples and instead use a specifically curated run 3 overlay root file.
+The file "neutrino_analysis.C" here does practically the same thing as the more updated/recent main analysis macro "pelee/surprise_nu_analysis.C" but there are some useful calculations and things that gave some of the statistics we cite and that haven't been tranferred to the new macro.
 This folder also includes our blip validation work ("validation") and the "hit_info.C" macro which was used to create the .txt file input for the RNN before we used Libtorch/had RNN variables directly in our NTuples.
 For more information on how to optimally use the RNN remotely see this document -> https://docs.google.com/document/d/1GcmniWuQfjSWTkSgCd5PSh_i_p5iKdFHEq_olMJ1syc/edit?usp=sharing.
 Though, this workflow procedure is depreciated as it requires local ROOT file (passed to)-> Jupyter notebook model, creates ROOT file (passed to)-> local ROOT macro to use in the analysis.
