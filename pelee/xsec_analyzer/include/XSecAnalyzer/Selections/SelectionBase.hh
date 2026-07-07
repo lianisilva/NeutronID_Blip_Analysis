@@ -1,6 +1,7 @@
 #pragma once
 
 // Standard library includes
+#include <map>
 #include <string>
 #include <type_traits>
 
@@ -37,6 +38,7 @@ public:
     category_map() const { return categ_map_; }
 
   virtual void define_category_map() = 0;
+
 
 protected:
 
@@ -136,36 +138,82 @@ protected:
 
   inline int get_event_number() { return event_number_; }
 
-  inline void define_true_FV( double XMin, double XMax, double YMin,
-    double YMax, double ZMin, double ZMax )
+  //inline void define_true_FV( double XMin, double XMax, double YMin,
+  //  double YMax, double ZMin, double ZMax )
+  //{
+  //  fv_true_ = { XMin, XMax, YMin, YMax, ZMin, ZMax };
+  //  set_fv_true_ = true;
+  //}
+
+  //inline FiducialVolume true_FV() {
+  //  if ( !set_fv_true_ ) {
+  //    std::cerr << "True Fiducial volume has not been defined"
+  //      << " for selection:" << selection_name_ << '\n';
+  //    throw;
+  //  }
+  //  return fv_true_;
+  //}
+
+  //inline void define_reco_FV( double XMin, double XMax, double YMin,
+  //  double YMax, double ZMin, double ZMax )
+  //{
+  //  fv_reco_ = { XMin, XMax, YMin, YMax, ZMin, ZMax };
+  //  set_fv_reco_ = true;
+  //}
+
+  //inline FiducialVolume reco_FV() {
+  //  if ( !set_fv_reco_ ) {
+  //    std::cerr << "Reco Fiducial volume has not been defined"
+  //      << " for selection:" << selection_name_ << '\n';
+  //    throw;
+  //  }
+  //  return fv_reco_;
+  //}
+
+  //inline void define_FV( double XMin, double XMax, double YMin,
+  //      		 double YMax, double ZMin, double ZMax ) {
+  //  fv_ = { XMin, XMax, YMin, YMax, ZMin, ZMax };
+  //  set_fv_ = true;
+  //}
+
+  //inline FiducialVolume FV() {
+  //  if ( !set_fv_ ) {
+  //    std::cerr << "Fiducial volume has not been defined"
+  //      << " for selection:" << selection_name_ << '\n';
+  //    throw;
+  //  }
+  //  return fv_;
+  //}
+
+  inline void define_FV( const std::string& name, double XMin, double XMax,
+                          double YMin, double YMax, double ZMin, double ZMax )
   {
-    fv_true_ = { XMin, XMax, YMin, YMax, ZMin, ZMax };
-    set_fv_true_ = true;
+    fv_map_[name] = { XMin, XMax, YMin, YMax, ZMin, ZMax };
   }
 
-  inline FiducialVolume true_FV() {
-    if ( !set_fv_true_ ) {
-      std::cerr << "True Fiducial volume has not been defined"
-        << " for selection:" << selection_name_ << '\n';
-      throw;
-    }
-    return fv_true_;
-  }
-
-  inline void define_reco_FV( double XMin, double XMax, double YMin,
-    double YMax, double ZMin, double ZMax )
+  // Overload for FVs that also carry a Z dead-zone exclusion
+  inline void define_FV_with_dead_zone( const std::string& name,
+    double XMin, double XMax, double YMin, double YMax, double ZMin, double ZMax,
+    double DeadZMin, double DeadZMax )
   {
-    fv_reco_ = { XMin, XMax, YMin, YMax, ZMin, ZMax };
-    set_fv_reco_ = true;
+    FiducialVolume fv;
+    fv.X_Min = XMin; fv.X_Max = XMax;
+    fv.Y_Min = YMin; fv.Y_Max = YMax;
+    fv.Z_Min = ZMin; fv.Z_Max = ZMax;
+    fv.Has_DeadZone   = true;
+    fv.DeadZone_Z_Min = DeadZMin;
+    fv.DeadZone_Z_Max = DeadZMax;
+    fv_map_[name] = fv;
   }
 
-  inline FiducialVolume reco_FV() {
-    if ( !set_fv_reco_ ) {
-      std::cerr << "Reco Fiducial volume has not been defined"
-        << " for selection:" << selection_name_ << '\n';
-      throw;
+  inline FiducialVolume FV( const std::string& name ) {
+    auto it = fv_map_.find( name );
+    if ( it == fv_map_.end() ) {
+      std::cerr << "Fiducial volume \"" << name << "\" has not been defined"
+        << " for selection: " << selection_name_ << '\n';
+      throw std::runtime_error( "Undefined fiducial volume: " + name );
     }
-    return fv_reco_;
+    return it->second;
   }
 
   virtual bool selection( AnalysisEvent* event ) = 0;
@@ -197,11 +245,15 @@ private:
   bool selected_;
   bool mc_signal_;
 
-  FiducialVolume fv_true_;
-  FiducialVolume fv_reco_;
-  bool set_fv_true_ = false;
-  bool set_fv_reco_ = false;
+  //FiducialVolume fv_true_;
+  //FiducialVolume fv_reco_;
+  //bool set_fv_true_ = false;
+  //bool set_fv_reco_ = false;
 
   int event_number_;
+
+  FiducialVolume fv_;
+  std::map<std::string, FiducialVolume> fv_map_;
+
 
 };

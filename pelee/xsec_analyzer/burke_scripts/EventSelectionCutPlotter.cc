@@ -161,14 +161,8 @@ using BucketMap = std::map<std::string, std::unique_ptr<TH1F>>;
 using GetBucketHistFn = std::function<TH1F*(const std::string&)>;
 
 // Map PDG bucket for Overlay
-// We pass blip_true_ncat. instead of pdg
-static inline std::string BucketFromPDG_Overlay(int pdg) {
-  const int a = pdg;//std::abs(pdg);
-  //if (a == 13)   return "Muon";
-  //if (a == 2212) return "Proton";
-  //if (a == 211)  return "Pion";
-  //else { std::cout << "Other pdg: " << pdg << std::endl; }
-  if (a == 0 || a == 8) return "Other (truth-matched)";
+static inline std::string BucketFrom_true_ncat(int category) {
+  const int a = category;
   if (a == 1) return "Primary (n,1p)";
   if (a == 2) return "Primary (n,Np)";
   if (a == 3 || a == 4) return "Secondary (n,Xp)";
@@ -176,10 +170,11 @@ static inline std::string BucketFromPDG_Overlay(int pdg) {
   if (a == 6) return "Secondary (n,gamma)";
   if (a == 7) return "ncapture gamma";
   if (a == -9) return "Cosmics and radiogenics";
+  if (a == 0 || a == 8) return "Other (truth-matched)";
   return "Other";
 }
 
-static const std::map<std::string, int> kPFPColors = {
+static const std::map<std::string, int> kBlipColors = {
   {"Other (truth-matched)",   kCyan+3},
   {"Primary (n,1p)", kGreen-2},
   {"Primary (n,Np)",   kSpring+2},
@@ -264,20 +259,20 @@ static void WriteIntegratedEfficiencyCSV_OverlayOnly(
   ch.ResetBranchAddresses();
 }
 
-using PFPBucketMap   = std::map<std::string, std::unique_ptr<TH1F>>;
-using GetPFPBucketFn = std::function<TH1F*(const std::string&)>;
+using BlipBucketMap   = std::map<std::string, std::unique_ptr<TH1F>>;
+using GetBlipBucketFn = std::function<TH1F*(const std::string&)>;
 
-// Per file: apply event cuts, then read a SINGLE PFP (by index_branch) and fill var from var_branch[idx]
-static void FillPFP_PerFileScaled1D(const RunGroup& rg,
+// Per file: apply event cuts, then read a SINGLE BLIP (by index_branch) and fill var from var_branch[idx]
+static void FillBlip_PerFileScaled1D(const RunGroup& rg,
                                     Sample s,
-                                    const GetPFPBucketFn& get_bucket_hist,
+                                    const GetBlipBucketFn& get_bucket_hist,
                                     const char* index_branch,            // single int index (fallback)
-                                    const char* var_branch_vec,          // e.g. "trk_score_v" or PFP-domain var
-                                    const char* backtracked_pdg_vec,     // PFP-domain PDG (overlay only)
+                                    const char* var_branch_vec,          // e.g. "blip_energy" or blip-domain var
+                                    const char* blip_true_ncategory,     // true particle that produced the blip (overlay only, blip-domain)
                                     const std::vector<std::string>& cuts,
                                     int nbins, double xmin, double xmax,
                                     Long64_t max_events = -1,
-                                    bool all_pfps = false,
+                                    bool all_blips = false,
                                     const char* indices_branch_vec = nullptr)
 {
   std::unique_ptr<TFile> f(TFile::Open(rg.file.c_str(), "READ"));
@@ -300,10 +295,10 @@ static void FillPFP_PerFileScaled1D(const RunGroup& rg,
   }
 
   // Index sources
-  int pfp_idx = -1;                            // single index branch (fallback)
-  if (!all_pfps && !indices_branch_vec) {
+  int blip_idx = -1;                            // single index branch (fallback)
+  if (!all_blips && !indices_branch_vec) {
     tr->SetBranchStatus(index_branch, 1);
-    tr->SetBranchAddress(index_branch, &pfp_idx);
+    tr->SetBranchAddress(index_branch, &blip_idx);
   }
   std::vector<int>* indices_v = nullptr;       // per-event vector<int> of indices
   if (indices_branch_vec && tr->GetBranch(indices_branch_vec)) {
@@ -316,12 +311,12 @@ static void FillPFP_PerFileScaled1D(const RunGroup& rg,
   tr->SetBranchStatus(var_branch_vec, 1);
   tr->SetBranchAddress(var_branch_vec, &var_v);
 
-  // PDG (overlay only; PFP domain). Dirt/EXT do not use PDG.
-  std::vector<int>* pdg_v = nullptr;
+  // PDG (overlay only; Blip domain). Dirt/EXT do not use PDG.
+  std::vector<int>* category_v = nullptr;
   const bool is_overlay = (s == Sample::kOverlay);
-  if (is_overlay && tr->GetBranch(backtracked_pdg_vec)) {
-    tr->SetBranchStatus(backtracked_pdg_vec, 1);
-    tr->SetBranchAddress(backtracked_pdg_vec, &pdg_v);
+  if (is_overlay && tr->GetBranch(blip_true_ncategory)) {
+    tr->SetBranchStatus(blip_true_ncategory, 1);
+    tr->SetBranchAddress(blip_true_ncategory, &category_v);
   }
 
   // MC weights (overlay/dirt)
@@ -343,7 +338,7 @@ static void FillPFP_PerFileScaled1D(const RunGroup& rg,
   auto get_tmp = [&](const std::string& label)->TH1F*{
     auto it = tmp_by_bucket.find(label);
     if (it != tmp_by_bucket.end()) return it->second.get();
-    auto h = std::make_unique<TH1F>(("tmp_pfp_"+label).c_str(), "", nbins, xmin, xmax);
+    auto h = std::make_unique<TH1F>(("tmp_blip_"+label).c_str(), "", nbins, xmin, xmax);
     h->Sumw2(true); h->SetDirectory(nullptr);
     TH1F* raw = h.get();
     tmp_by_bucket[label] = std::move(h);
@@ -364,15 +359,15 @@ static void FillPFP_PerFileScaled1D(const RunGroup& rg,
     if (!var_v) continue;
     const int n_vals = (int)var_v->size();
 
-    // Build per-event index list (precedence: all_pfps > indices_branch_vec > index_branch)
+    // Build per-event index list (precedence: all_blips > indices_branch_vec > index_branch)
     std::vector<int> idx_list;
-    if (all_pfps) {
+    if (all_blips) {
       idx_list.resize(n_vals);
       std::iota(idx_list.begin(), idx_list.end(), 0);
     } else if (indices_v && !indices_v->empty()) {
       idx_list = *indices_v;
     } else {
-      if (pfp_idx >= 0) idx_list.push_back(pfp_idx);
+      if (blip_idx >= 0) idx_list.push_back(blip_idx);
     }
 
     if (idx_list.empty()) continue;
@@ -393,22 +388,19 @@ static void FillPFP_PerFileScaled1D(const RunGroup& rg,
     for (int idx : idx_list) {
       if (idx < 0 || idx >= n_vals) continue;
 
-      // Overlay-only PDG (PFP domain). If missing/OOB, default to "Other".
-      int pdg = 0;
+      // Overlay-only true_blip_ncategory. If missing/OOB, default to "Other".
+      int category = 0;
       if (is_overlay) {
-        if (pdg_v && idx < (int)pdg_v->size()) pdg = (*pdg_v)[idx];
-        else pdg = 0;
+        if (category_v && idx < (int)category_v->size()) category = (*category_v)[idx];
+        else category = 0;
       }
 
       const float val = (*var_v)[idx];
 
       std::string label;
-      if (s == Sample::kOverlay)   label = BucketFromPDG_Overlay(pdg);
+      if (s == Sample::kOverlay)   label = BucketFrom_true_ncat(category);
       else if (s == Sample::kDirt) label = "Dirt";
       else                         label = "EXT"; 
-      //if (s == Sample::kEXT)       label = "EXT";
-      //else if (s == Sample::kDirt) label = "Dirt";
-      //else                         label = BucketFromPDG_Overlay(pdg);
 
       get_tmp(label)->Fill(val, w);
     }
@@ -425,13 +417,13 @@ static void FillPFP_PerFileScaled1D(const RunGroup& rg,
   tr->ResetBranchAddresses();
 }
 
-static void FillPFP_Data_FromFiles1D(const std::vector<RunGroup>& nuwro_files,
+static void FillBlip_Data_FromFiles1D(const std::vector<RunGroup>& nuwro_files,
                                       const char* index_branch,
                                       const char* var_branch_vec,
                                       const std::vector<std::string>& cuts,
                                       TH1F& h_out,
                                       Long64_t max_events = -1,
-                                      bool all_pfps = false,
+                                      bool all_blips = false,
                                       const char* indices_branch_vec = nullptr)
 {
   h_out.Sumw2(true);
@@ -455,10 +447,10 @@ static void FillPFP_Data_FromFiles1D(const std::vector<RunGroup>& nuwro_files,
       }
     }
 
-    int pfp_idx = -1;
-    if (!all_pfps && !indices_branch_vec) {
+    int blip_idx = -1;
+    if (!all_blips && !indices_branch_vec) {
       tr->SetBranchStatus(index_branch, 1);
-      tr->SetBranchAddress(index_branch, &pfp_idx);
+      tr->SetBranchAddress(index_branch, &blip_idx);
     }
     std::vector<int>* indices_v = nullptr;
     if (indices_branch_vec && tr->GetBranch(indices_branch_vec)) {
@@ -484,13 +476,13 @@ static void FillPFP_Data_FromFiles1D(const std::vector<RunGroup>& nuwro_files,
       const int n_vals = (int)var_v->size();
 
       std::vector<int> idx_list;
-      if (all_pfps) {
+      if (all_blips) {
         idx_list.resize(n_vals);
         std::iota(idx_list.begin(), idx_list.end(), 0);
       } else if (indices_v && !indices_v->empty()) {
         idx_list = *indices_v;
       } else {
-        if (pfp_idx >= 0) idx_list.push_back(pfp_idx);
+        if (blip_idx >= 0) idx_list.push_back(blip_idx);
       }
       if (idx_list.empty()) continue;
 
@@ -509,36 +501,36 @@ static void FillPFP_Data_FromFiles1D(const std::vector<RunGroup>& nuwro_files,
 }
 
 
-static void FillPFP_FromFiles1D(const std::vector<RunGroup>& files,
+static void FillBlip_FromFiles1D(const std::vector<RunGroup>& files,
                                 Sample s,
-                                const GetPFPBucketFn& get_bucket_hist,
+                                const GetBlipBucketFn& get_bucket_hist,
                                 const char* index_branch,
                                 const char* var_branch_vec,
-                                const char* backtracked_pdg_vec,
+                                const char* blip_true_ncategory,
                                 int nbins, double xmin, double xmax,
                                 const std::vector<std::string>& cuts,
                                 Long64_t max_events = -1,
-				bool all_pfps = false,
+				bool all_blips = false,
 				const char* indices_branch_vec = nullptr)
 {
   for (const auto& rg : files)
-    FillPFP_PerFileScaled1D(rg, s, get_bucket_hist,
-                            index_branch, var_branch_vec, backtracked_pdg_vec,
-                            cuts, nbins, xmin, xmax, max_events, all_pfps, indices_branch_vec);
+    FillBlip_PerFileScaled1D(rg, s, get_bucket_hist,
+                            index_branch, var_branch_vec, blip_true_ncategory,
+                            cuts, nbins, xmin, xmax, max_events, all_blips, indices_branch_vec);
 }
 
-static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
+static void MakeBlipStack1D(const std::vector<RunGroup>& overlay_files,
                            const std::vector<RunGroup>& dirt_files,
                            const std::vector<RunGroup>& ext_files,
                            const std::vector<RunGroup>& data_files,  // NEW
-                           const char* index_branch,                   // e.g. "muon_candidate_idx"
-                           const char* var_branch_vec,                 // e.g. "trk_llr_pid_score_v"
-                           const char* backtracked_pdg_vec,            // e.g. "backtracked_pdg"
+                           const char* index_branch,                   // e.g. "blip_trkid"
+                           const char* var_branch_vec,                 // e.g. "blip_energy"
+                           const char* blip_true_ncategory,            // e.g. "blip_true_ncategory"
                            const char* axis_title,
                            int nbins, double xmin, double xmax,
                            const std::vector<std::string>& cuts,
                            Long64_t max_events = -1,
-			   bool all_pfps = false,
+			   bool all_blips = false,
 			   const char* indices_branch_vec = nullptr)
 {
   std::string cutlabel;
@@ -548,17 +540,17 @@ static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
   }
   const std::string base = std::string(var_branch_vec) + "_idx_" + index_branch + "_" + (cutlabel.empty()?"NoCuts":cutlabel) + "_" + (indices_branch_vec?indices_branch_vec:"");
 
-  PFPBucketMap h_by_bucket;
+  BlipBucketMap h_by_bucket;
   auto get_bucket_hist = [&](const std::string& label)->TH1F*{
     auto it = h_by_bucket.find(label);
     if (it != h_by_bucket.end()) return it->second.get();
     auto h = std::make_unique<TH1F>(
-      (std::string("h_pfp_")+label+"_"+base).c_str(),
+      (std::string("h_blip_")+label+"_"+base).c_str(),
       (std::string(";")+axis_title+";Events (scaled to NuWro)").c_str(),
       nbins, xmin, xmax);
     h->Sumw2();
     h->SetDirectory(nullptr);
-    const int col = (kPFPColors.count(label) ? kPFPColors.at(label) : kGray+2);
+    const int col = (kBlipColors.count(label) ? kBlipColors.at(label) : kGray+2);
     h->SetFillColor(col);
     h->SetLineColor(col);
     if (label == "EXT") {
@@ -570,17 +562,17 @@ static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
     return raw;
   };
 
-  FillPFP_FromFiles1D(overlay_files, Sample::kOverlay, get_bucket_hist,
-                      index_branch, var_branch_vec, backtracked_pdg_vec,
-                      nbins, xmin, xmax, cuts, max_events, all_pfps, indices_branch_vec);
-  FillPFP_FromFiles1D(dirt_files,    Sample::kDirt,    get_bucket_hist,
-                      index_branch, var_branch_vec, backtracked_pdg_vec,
-                      nbins, xmin, xmax, cuts, max_events, all_pfps, indices_branch_vec);
-  FillPFP_FromFiles1D(ext_files,     Sample::kEXT,     get_bucket_hist,
-                      index_branch, var_branch_vec, backtracked_pdg_vec,
-                      nbins, xmin, xmax, cuts, max_events, all_pfps, indices_branch_vec);
+  FillBlip_FromFiles1D(overlay_files, Sample::kOverlay, get_bucket_hist,
+                      index_branch, var_branch_vec, blip_true_ncategory,
+                      nbins, xmin, xmax, cuts, max_events, all_blips, indices_branch_vec);
+  FillBlip_FromFiles1D(dirt_files,    Sample::kDirt,    get_bucket_hist,
+                      index_branch, var_branch_vec, blip_true_ncategory,
+                      nbins, xmin, xmax, cuts, max_events, all_blips, indices_branch_vec);
+  FillBlip_FromFiles1D(ext_files,     Sample::kEXT,     get_bucket_hist,
+                      index_branch, var_branch_vec, blip_true_ncategory,
+                      nbins, xmin, xmax, cuts, max_events, all_blips, indices_branch_vec);
 
-  TH1F h_BNB_data(("h_pfp_nuwro_"+base).c_str(),
+  TH1F h_BNB_data(("h_blip_nuwro_"+base).c_str(),
                (std::string(";")+axis_title+";Events (NuWro fake data)").c_str(),
                nbins, xmin, xmax);
   h_BNB_data.SetLineColor(kBlack);
@@ -588,8 +580,8 @@ static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
   h_BNB_data.SetMarkerStyle(20);
   h_BNB_data.SetMarkerColor(kBlack);
 
-  FillPFP_Data_FromFiles1D(data_files, index_branch, var_branch_vec,
-                             cuts, h_BNB_data, max_events, all_pfps, indices_branch_vec);
+  FillBlip_Data_FromFiles1D(data_files, index_branch, var_branch_vec,
+                             cuts, h_BNB_data, max_events, all_blips, indices_branch_vec);
 
   /*if (auto it = h_by_bucket.find("EXT"); it != h_by_bucket.end()) {
     std::cout << "Adding EXT distribution to nuwro histogram" << std::endl;
@@ -600,10 +592,10 @@ static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
     h_BNB_data.Add(it->second.get());
   }*/
 
-  THStack st(("st_pfp_" + base).c_str(), (std::string(";") + axis_title + ";Events").c_str());
+  THStack st(("st_blip_" + base).c_str(), (std::string(";") + axis_title + ";Events").c_str());
   
   //std::vector<std::string> order = {"Muon","Proton","Pion","Other","Dirt","EXT"};
-  std::vector<std::string> order =  {"Other (truth-matched)", "Primary (n,1p)", "Primary (n,Np)", "Dirt", "EXT", "Secondary (n,Xp)", "Primary (n,gamma)", "Secondary (n,gamma)", "ncapture gamma", "Cosmics and radiogenics"};
+  std::vector<std::string> order =  {"Primary (n,1p)", "Primary (n,Np)", "Dirt", "EXT", "Secondary (n,Xp)", "Primary (n,gamma)", "Secondary (n,gamma)", "ncapture gamma", "Cosmics and radiogenics", "Other (truth-matched)"};
 
   for (const auto& name : order) {
     auto it = h_by_bucket.find(name);
@@ -612,9 +604,9 @@ static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
   }
 
 
-  TCanvas c(("c_pfp_" + base).c_str(), ("PFP stack: " + base).c_str(), 1100, 750);
+  TCanvas c(("c_blip_" + base).c_str(), ("Blip stack: " + base).c_str(), 1100, 750);
   //c.SetLogy();
-  gStyle->SetOptStat(0);
+  gStyle->SetOptStat(0); gPad->SetLeftMargin(0.15);
   double max_stack = st.GetMaximum();
   double max_data  = h_BNB_data.GetMaximum();
   double ymax = 1.25 * std::max(max_stack, max_data);
@@ -624,6 +616,7 @@ static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
   st.Draw("hist");
   st.GetXaxis()->SetTitle(axis_title);
   st.GetYaxis()->SetTitle("Candidates");
+  //st.GetYaxis()->SetTitleOffset(1.6);
   h_BNB_data.Draw("E1 SAME");
 
   double total_mc = 0.0;
@@ -639,7 +632,8 @@ static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
   for (const auto& name : order) {
     auto it = h_by_bucket.find(name);
     if (it == h_by_bucket.end()) continue;
-    const double val = it->second->Integral();
+    int Nbins = it->second->GetNbinsX();
+    const double val = it->second->Integral(0, Nbins+1);
     if (val <= 0) continue;
     std::string lab = name;
     if (total_mc > 0) lab += Form(" (%.1f%%)", 100.0*val/total_mc);
@@ -658,8 +652,8 @@ static void MakePFPStack1D(const std::vector<RunGroup>& overlay_files,
   //lat.DrawLatexNDC(0.4, 0.98, "Simulation events: 5539664");
   //lat.DrawLatexNDC(0.7, 0.98, "Data Events: 4341548");
 
-  const std::string png = base + "_pfp.png";
-  const std::string pdf = base + "_pfp.pdf";
+  const std::string png = base + "_blip.png";
+  const std::string pdf = base + "_blip.pdf";
   c.SaveAs(png.c_str());
   c.SaveAs(pdf.c_str());
   std::cout << "[saved] " << png << " and " << pdf << "\n";
@@ -1225,7 +1219,7 @@ int main() {
 
   std::vector<RunGroup> ext_files = {
     //{"/Users/liani/nu_work/pelee/files/MCC9p10_Run4b_v10_04_07_09_BNB_beamoffEXT_surprise_blipPlus_20260522.root", 0},
-    {"../EXT_out.root", 0},
+    //{"../EXT_out.root", 0},
     //{"/pnfs/uboone/persistent/users/mhernan/processed/run2_CC1muNp0piNn_EXT_POST_multisim.root", 1},
     //{"/pnfs/uboone/persistent/users/mhernan/processed/run3_CC1muNp0piNn_EXT_POST_multisim.root", 2},
     //{"/pnfs/uboone/persistent/users/mhernan/processed/run4_CC1muNp0piNn_EXT_POST_multisim.root", 3},
@@ -1277,7 +1271,7 @@ int main() {
 
   //std::vector<std::string> cuts_vec = { "CC1muNp0piNn_nu_mu_cc", "CC1muNp0piNn_passed_proton_pid_cut", "CC1muNp0piNn_lead_p_passed_mom_cuts", "CC1muNp0piNn_protons_contained" };
   //Bool_t b = blip_touchtrk[0];
-  std::vector<std::string> cuts_vec = {};//{ "b", "b", "b", "b" };
+  std::vector<std::string> cuts_vec = {"Blip_n_Np_nu_mu_cc"};//{ "b", "b", "b", "b" };
 
   //std::vector<std::string> eff_stages = { "CC1muNp0piNn_nu_mu_cc", "CC1muNp0piNn_no_reco_showers", "CC1muNp0piNn_has_p_candidate", "CC1muNp0piNn_lead_p_passed_mom_cuts", "CC1muNp0piNn_Selected" };
 
@@ -1302,22 +1296,19 @@ int main() {
 
   //MakeStack1DForFlag(overlay_files, dirt_files, ext_files, data_files, "topological_score", "Neutrino Slice Topo Score", 40, 0.0, 1.0, cuts_vec, max_events);
 
-  /*Make2DOverlayVertexPlot(
+/*
+  Make2DOverlayVertexPlot(
     overlay_files,
     "reco_nu_vtx_sce_x", "reco_nu_vtx_sce_z",
     "reco #nu vtx SCE-corrected X [cm]", "reco #nu vtx SCE-corrected Z [cm]",
     52, 0.0, 260.0,   52, 0.0, 1040.0,
     {}, true, false,
     -1);
+  + 1 for "reco_nu_vtx_sce_x", "reco_nu_vtx_sce_y",
+*/
 
-  Make2DOverlayVertexPlot(
-    overlay_files,
-    "reco_nu_vtx_sce_x", "reco_nu_vtx_sce_y",
-    "reco #nu vtx SCE-corrected X [cm]", "reco #nu vtx SCE-corrected Y [cm]",
-    52, 0.0, 260.0,   58, -116.0, 116.0,
-    {}, false, true, -1);*/
-
-  /*MakePFPStack1D(
+/*
+  MakeBlipStack1D(
     overlay_files, dirt_files, ext_files, data_files,
     "CC1muNp0piNn_muon_candidate_idx",
     "trk_score_v",
@@ -1328,48 +1319,14 @@ int main() {
     -1,
     true
   );
-
-  MakePFPStack1D(
-    overlay_files, dirt_files, ext_files, data_files,
-    "CC1muNp0piNn_muon_candidate_idx",
-    "trk_llr_pid_score_v",
-    "backtracked_pdg",
-    "LLR PID Score",
-    50, -1.0, 1.0,
-    cuts_vec,
-    -1,
-    true
-  );
-
-  MakePFPStack1D(
-    overlay_files, dirt_files, ext_files, data_files,
-    "CC1muNp0piNn_muon_candidate_idx",
-    "trk_len_v",
-    "backtracked_pdg",
-    "Track Length (cm)",
-    100, 0.0, 100.,
-    cuts_vec,
-    -1,
-    true
-  );
-
-  MakePFPStack1D(
-    overlay_files, dirt_files, ext_files, data_files,
-    "CC1muNp0piNn_muon_candidate_idx",
-    "trk_distance_v",
-    "backtracked_pdg",
-    "Vertex Displacement (cm)",
-    100, 0.0, 20.0,
-    cuts_vec,
-    -1,
-    true
-  );*/
+  + 1 for trk_llr_pid_score_v & 1 for trk_len_v & 1 for trk_distance_v
+*/
 
   ///// data files ///
 /*
-  MakePFPStack1D(
+  MakeBlipStack1D(
     overlay_files, dirt_files, ext_files, data_files,
-    "CC1muNp0piNn_lead_p_candidate_idx",   // requires this branch to be and int not a vector<int> via FillPFP_PerFileScaled1D
+    "CC1muNp0piNn_lead_p_candidate_idx",   // requires this branch to be and int not a vector<int> via FillBlip_PerFileScaled1D
     "trk_energy_proton_v",
     "backtracked_pdg",
     "Proton Energy from Track (GeV)",
@@ -1377,35 +1334,25 @@ int main() {
     cuts_vec,
     -1
   );
-
-  MakePFPStack1D(
-    overlay_files, dirt_files, ext_files, data_files,
-    "CC1muNp0piNn_lead_p_candidate_idx",   // requires this branch to be and int not a vector<int> via FillPFP_PerFileScaled1D
-    "trk_llr_pid_score_v",
-    "backtracked_pdg",
-    "Proton Candidate LLRPID",
-    100, -1.0, .2,
-    cuts_vec,
-    -1
-  );
+  + 1 for trk_llr_pid_score
 */
 
-  MakePFPStack1D(
+  MakeBlipStack1D(
     overlay_files, dirt_files, ext_files, data_files,   //nuwro_files,
-    "Blip_n_Np_nu_mu_cc",
+    "",   // this only works because we input the last parameter, index vector, which trumps this param, index int
     "blip_energy",//"trk_len_v",
     "blip_true_ncategory",//"backtracked_pdg",
     "Reconstructed Blip Energy [MeVee]",//"Secondary Proton Candidate Track Length (cm)",
-    100, 0.0, 100.,
+    20, 0.0, 10.,
     cuts_vec,
     -1,
-    false,     // true =  all_pfps — iterate over every blip
-    "blip_trkid"//nullptr   // no index vec needed
+    false,     // true =  all_blips — iterate over every blip
+    "blip_trkid"   //nullptr = no index vec needed
   );
 
-  MakePFPStack1D(
+  MakeBlipStack1D(
     overlay_files, dirt_files, ext_files, data_files, //nuwro_files,
-    "Blip_n_Np_nu_mu_cc",
+    "",
     "blip_x",//"trk_llr_pid_score_v",
     "blip_true_ncategory",//"backtracked_pdg",
     "Blip X Position",//"Secondary Proton Candidate LLRPID",

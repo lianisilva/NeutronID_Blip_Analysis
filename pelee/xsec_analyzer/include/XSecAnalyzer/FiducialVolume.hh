@@ -13,16 +13,26 @@
 
 struct FiducialVolume{
   double X_Min, X_Max, Y_Min, Y_Max, Z_Min, Z_Max = BOGUS;
+
+  // Optional dead-zone exclusion along Z. If DeadZone_Min/Max are left at
+  // their default (no dead zone set), point_inside_FV ignores them entirely.
+  bool   Has_DeadZone  = false;
+  double DeadZone_Z_Min = BOGUS;
+  double DeadZone_Z_Max = BOGUS;
 };
 
-// Use a template here so that this function can take float or double values as
-// input
+// Use a template here so that this function can take float or double values as input
 template <typename Number> bool point_inside_FV( FiducialVolume FV, Number x, Number y, Number z ) {
   bool x_inside_FV = ( FV.X_Min < x ) && ( x < FV.X_Max );
   bool y_inside_FV = ( FV.Y_Min < y ) && ( y < FV.Y_Max );
   bool z_inside_FV = ( FV.Z_Min < z ) && ( z < FV.Z_Max );
-  
-  return ( x_inside_FV && y_inside_FV && z_inside_FV );
+
+  bool not_in_dead_zone = true;
+  if ( FV.Has_DeadZone ) {
+    not_in_dead_zone = ( z < FV.DeadZone_Z_Min ) || ( z > FV.DeadZone_Z_Max );
+  }
+
+  return ( x_inside_FV && y_inside_FV && z_inside_FV && not_in_dead_zone );
 }
 
 inline bool point_inside_FV( FiducialVolume FV, const TVector3& pos ) {

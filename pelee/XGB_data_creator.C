@@ -468,7 +468,8 @@
         //============================== CUTS ==============================//
 	if( blip_touchtrk->at(i) || dist_to_trk <= 1 || !IsInFV_Exact(blip_loc) ) continue;
 	if( blip_pl0_bydeadwire->at(i) == 1 || blip_pl1_bydeadwire->at(i) == 1 || blip_pl2_bydeadwire->at(i) == 1 ) continue;
-        if( dist >= 100 ) continue; //if( density < Fit_Function_PID_Cut(blipE) ) continue; if( blipE <= 3 ) continue;
+        if( dist >= 100 ) continue; //if( density < Fit_Function_PID_Cut(blipE) ) continue;
+	if( blipE > 3 ) continue;
         //bool isInShower = false; 
         //for( const auto& [shr_vtx, shr_P, E] : shr_vtx_P_E ) { if ( IsWithinShowerCone(shr_vtx, shr_P, blip_loc, 90.0) ) { isInShower = true; break; } }
         //if( isInShower ) continue;

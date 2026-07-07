@@ -278,13 +278,13 @@
 
     TH1D* h_signal_BDT_score = new TH1D("signal_BDT_score","BDT Score for Signal and Background Blips;Score;Arbitrary Units (Area Normalized)",60,-10,2);
     TH1D* h_bkg_BDT_score = new TH1D("bkg_BDT_score","BDT Score for Signal and Background Blips;Score;Arbitrary Units (Area Normalized)",60,-10,2);
-    TGraphErrors* g_FOM1_vs_BDT_score = new TGraphErrors();
-    TGraphErrors* g_FOM2_vs_BDT_score = new TGraphErrors();
+    TGraphErrors* g_rareSearch_vs_BDT_score = new TGraphErrors();
+    TGraphErrors* g_ExP_sq_vs_BDT_score = new TGraphErrors();
     TGraphErrors* g_pur_vs_BDT_score = new TGraphErrors();
     TGraphErrors* g_eff_vs_BDT_score = new TGraphErrors();
     TGraphErrors* g_ExP_vs_BDT_score = new TGraphErrors();
     //TGraph* g_effStatErr_vs_BDT_score = new TGraph();
-    //g_FOM1_vs_BDT_score->SetName("g_FOM1_vs_BDT_score"); g_FOM1_vs_BDT_score->SetTitle("Figure of Merit vs BDT Score;Score;FOM");
+    //g_rareSearch_vs_BDT_score->SetName("g_rareSearch_vs_BDT_score"); g_rareSearch_vs_BDT_score->SetTitle("Figure of Merit vs BDT Score;Score;FOM");
     //g_pur_vs_BDT_score->SetName("g_pur_vs_BDT_score");
     //g_eff_vs_BDT_score->SetName("g_eff_vs_BDT_score");
     //g_ExP_vs_BDT_score->SetName("g_ExP_vs_BDT_score");
@@ -416,8 +416,7 @@
         //============================== CUTS ==============================//
         if( blip_touchtrk->at(i) || dist_to_trk <= 1 || !IsInFV_Exact(blip_loc) ) continue;
         if( blip_pl0_bydeadwire->at(i) == 1 || blip_pl1_bydeadwire->at(i) == 1 || blip_pl2_bydeadwire->at(i) == 1 ) continue;
-        if( dist >= 100 ) continue; //if( density < Fit_Function_PID_Cut(blipE) ) continue;
-	//if( blipE <= 3 ) continue;
+        if( dist >= 100 ) continue; //if( density < Fit_Function_PID_Cut(blipE) ) continue; if( blipE > 3 ) continue;
 
 	allIDX = -9; mom_trkID = -9; mom_isPrimary = false; mom_allIDX = -9; mom_pdg = -9;
 	auto it = map_allTrkID_partIDX.find(g4id);
@@ -484,8 +483,8 @@
     int ipoint = 0; float step_size=0.1; float maxExP_val=0.0;
     float maxRareMetric=0, purMaxRare=0, effMaxRare=0, scoreMaxRare=0;
     bool hitOneEff=false; float maxPurNearOneEff=0, effNearOne=0, scoreNearOneEff=0;
-    float eff_here=0, pur_here=0, FOM1=0, FOM2=0, effStatErr_here=0;
-    float eff_err = 0, pur_err = 0, ExP_err = 0, FOM1_err = 0, FOM2_err = 0;
+    float eff_here=0, pur_here=0, rareSearch=0, ExP_sq=0, effStatErr_here=0;
+    float eff_err = 0, pur_err = 0, ExP_err = 0, rareSearch_err = 0, ExP_sq_err = 0;
     // Sort scores for quicker addition
     std::sort(neutronID_sig_scores.begin(), neutronID_sig_scores.end()); std::sort(sig_scores.begin(), sig_scores.end());
     std::sort(totalSelected_scores.begin(), totalSelected_scores.end());
@@ -504,12 +503,10 @@
 	// Calculate metrics if valid
 	eff_here = num_nuID_sig / total_nu_Ns;
 	pur_here = num_sig / num_totSelected;
-	FOM1 = num_sig / sqrt( num_sig + (num_totSelected-num_sig) );
-	FOM2 = eff_here*pur_here*pur_here;
-	//std::cout<<"eff_here: "<<eff_here<<" pur_here: "<<pur_here<<"\n";
-	//std::cout<<"FOM1: "<<FOM1<<" threshold: "<<threshold<<"\n\n";
+	rareSearch = num_sig / sqrt( num_sig + (num_totSelected-num_sig) );
+	ExP_sq = eff_here*pur_here*pur_here;
+	effStatErr_here = sqrt( 1/num_nuID_sig + 1/total_nu_Ns );
 
-	//effStatErr_here = sqrt( 1/num_nuID_sig + 1/total_nu_Ns );
 	// Binomial errors on eff since total_nu_Ns is fixed (not a source of error)
 	eff_err = sqrt( eff_here * (1.f - eff_here) / total_nu_Ns );
         // Poisson errors on purity since the total selected blips does change
@@ -517,46 +514,49 @@
 	// E*P propagated error
 	if( eff_here > 0 && pur_here > 0 )
 	  ExP_err = eff_here * pur_here * sqrt( pow(eff_err/eff_here, 2) + pow(pur_err/pur_here, 2) );
-	// FOM2 = eff * pur^2  propagated error
+	// ExP_sq = eff * pur^2  propagated error
 	if( eff_here > 0 && pur_here > 0 )
-	  FOM2_err = FOM2 * sqrt( pow(eff_err/eff_here, 2) + pow(2*pur_err/pur_here, 2) );
-	// FOM1 = s / sqrt(s+b)  Poisson propagated error
+	  ExP_sq_err = ExP_sq * sqrt( pow(eff_err/eff_here, 2) + pow(2*pur_err/pur_here, 2) );
+	// rareSearch = s / sqrt(s+b)  Poisson propagated error
 	float s = num_sig, b = num_totSelected - num_sig, N = s + b;
 	if( N > 0 ) {
 	  float dFOM_ds = (0.5f*s + b) / pow(N, 1.5f);
 	  float dFOM_db = -0.5f*s    / pow(N, 1.5f);
-	  FOM1_err = sqrt( dFOM_ds*dFOM_ds*s + dFOM_db*dFOM_db*b );
+	  rareSearch_err = sqrt( dFOM_ds*dFOM_ds*s + dFOM_db*dFOM_db*b );
 	}
 
-      } else { eff_here = 0.0; pur_here = 0.0; FOM1 = 0.0; FOM2 = 0.0; } // If invalid, set to 0
+      } else { eff_here = 0.0; pur_here = 0.0; rareSearch = 0.0; ExP_sq = 0.0; } // If invalid, set to 0
 
       // Fill graphs
       g_pur_vs_BDT_score ->SetPoint     (ipoint, threshold, pur_here);
       g_pur_vs_BDT_score ->SetPointError(ipoint, 0,         pur_err);
       g_eff_vs_BDT_score ->SetPoint     (ipoint, threshold, eff_here * 10);
       g_eff_vs_BDT_score ->SetPointError(ipoint, 0,         eff_err  * 10);
-      g_FOM1_vs_BDT_score->SetPoint     (ipoint, threshold, FOM1 / 100);
-      g_FOM1_vs_BDT_score->SetPointError(ipoint, 0,         FOM1_err / 100);
-      g_FOM2_vs_BDT_score->SetPoint     (ipoint, threshold, FOM2 * 100);
-      g_FOM2_vs_BDT_score->SetPointError(ipoint, 0,         FOM2_err * 100);
+      g_rareSearch_vs_BDT_score->SetPoint(ipoint, threshold, rareSearch / 100);
+      g_rareSearch_vs_BDT_score->SetPointError(ipoint, 0,         rareSearch_err / 100);
+      g_ExP_sq_vs_BDT_score->SetPoint	(ipoint, threshold, ExP_sq * 100);
+      g_ExP_sq_vs_BDT_score->SetPointError(ipoint, 0,         ExP_sq_err * 100);
       float ExP_here = eff_here * pur_here;
       g_ExP_vs_BDT_score ->SetPoint     (ipoint, threshold, ExP_here * 100);
       g_ExP_vs_BDT_score ->SetPointError(ipoint, 0,         ExP_err  * 100);
       //g_effStatErr_vs_BDT_score->SetPoint(ipoint, threshold, effStatErr_here);
       ipoint++;
 
+	std::cout << threshold << "  eff=" << eff_here << "  pur=" << pur_here
+           << "  rareSearch=" << rareSearch << "  ExP=" << ExP_here << "\n";
+
       // Find max E*P across all thresholds
       if( ExP_here > maxExP_val ) maxExP_val = ExP_here;
 
-      // Find the maximum purity achieved before we hit our lowest acceptable efficiency (1%)
-      if( eff_here < 0.01 ) hitOneEff = true; //if( effStatErr_here >= 0.1 ) hitLowEff = true;
+      // Find the maximum purity achieved before we hit our lowest acceptable efficiency (~0.9%)
+      if( eff_here < 0.0085 ) hitOneEff = true; //if( effStatErr_here >= 0.1 ) hitLowEff = true;
       if( !hitOneEff && pur_here > maxPurNearOneEff ) {
 	maxPurNearOneEff = pur_here; effNearOne = eff_here;
 	scoreNearOneEff = threshold;
       }
-      if( FOM1 > maxRareMetric ) {
+      if( rareSearch > maxRareMetric ) {
 	purMaxRare = pur_here; effMaxRare = eff_here;
-	scoreMaxRare = threshold; maxRareMetric = FOM1;
+	scoreMaxRare = threshold; maxRareMetric = rareSearch;
       } 
     }
 
@@ -575,10 +575,10 @@
         }
     }
 
-    printf("\nWithin 1%% of max E*P (%.3f):\nE*P = %.3fE-03\nE: %.3f%%, P: %.3f%%\nscore = %.2f\n\n",
+    printf("\nWithin 1%% of max E*P (%.3fE-03):\nE*P = %.3fE-03\nE: %.3f%%, P: %.3f%%\nscore = %.2f\n\n",
             maxExP_val*1000, bestExP_inExPband*10, bestEff_inExPband*100, bestPur_inExPband*100, bestScore_inExPband);
 
-    printf("Highest purity when efficiency is >= 1%%:\nP: %.3f%%\nE*P = %.3fE-03\nscore = %.2f\nE: %.3f%%\n\n",
+    printf("Highest purity when efficiency is >= 0.9%%:\nP: %.3f%%\nE*P = %.3fE-03\nscore = %.2f\nE: %.3f%%\n\n",
             maxPurNearOneEff*100, effNearOne*maxPurNearOneEff*1000, scoreNearOneEff, effNearOne*100);
 
     printf("Max rare search metric (sig/sqrt(sig+bkg)=%.3f):\nE*P = %.3fE-03\nE: %.3f%%, P: %.3f%%\nscore = %.2f\n\n",
@@ -602,19 +602,19 @@
     g_pur_vs_BDT_score->GetXaxis()->SetTitle("BDT Score");
     g_pur_vs_BDT_score->GetYaxis()->SetTitle("Metric Value");
     
-    drawBand(g_eff_vs_BDT_score,   kAzure-5);
-    drawBand(g_FOM1_vs_BDT_score,  kBlack,  0.15);
-    drawBand(g_FOM2_vs_BDT_score,  kSpring-5);
-    drawBand(g_ExP_vs_BDT_score,   kOrange-5);
+    drawBand(g_eff_vs_BDT_score,	kAzure-5);
+    drawBand(g_rareSearch_vs_BDT_score,	kBlack,  0.15);
+    drawBand(g_ExP_sq_vs_BDT_score,	kSpring-5);
+    drawBand(g_ExP_vs_BDT_score,	kOrange-5);
     // pur on top since it's the primary metric
-    drawBand(g_pur_vs_BDT_score,   kViolet-5);
+    drawBand(g_pur_vs_BDT_score,	kViolet-5);
     
     // Draw lines on top of all bands
-    drawLine(g_pur_vs_BDT_score,   kViolet-5);
-    drawLine(g_eff_vs_BDT_score,   kAzure-5);
-    drawLine(g_FOM1_vs_BDT_score,  kBlack);
-    drawLine(g_FOM2_vs_BDT_score,  kSpring-5);
-    drawLine(g_ExP_vs_BDT_score,   kOrange-5);
+    drawLine(g_pur_vs_BDT_score,	kViolet-5);
+    drawLine(g_eff_vs_BDT_score,	kAzure-5);
+    drawLine(g_rareSearch_vs_BDT_score,	kBlack);
+    drawLine(g_ExP_sq_vs_BDT_score,	kSpring-5);
+    drawLine(g_ExP_vs_BDT_score,	kOrange-5);
     
     TLine *cutoffSpot = new TLine(scoreNearOneEff, gPad->GetUymin(), scoreNearOneEff, gPad->GetUymax());
     cutoffSpot->SetLineColor(kRed); cutoffSpot->SetLineWidth(3);
@@ -624,44 +624,14 @@
     TLegend *leg = new TLegend(0.7, 0.7, 0.9, 0.9);
     leg->AddEntry(g_pur_vs_BDT_score,  "Purity (#pm Poisson)");
     leg->AddEntry(g_eff_vs_BDT_score,  "Efficiency #times10 (#pm binomial)");
-    leg->AddEntry(g_FOM1_vs_BDT_score, "S/#sqrt{S+B} /100 (#pm Poisson)");
-    leg->AddEntry(g_FOM2_vs_BDT_score, "E#timesP^{2} #times100 (#pm propagated)");
+    leg->AddEntry(g_rareSearch_vs_BDT_score, "S/#sqrt{S+B} /100 (#pm Poisson)");
+    leg->AddEntry(g_ExP_sq_vs_BDT_score, "E#timesP^{2} #times100 (#pm propagated)");
     leg->AddEntry(g_ExP_vs_BDT_score,  "E#timesP #times100 (#pm propagated)");
     leg->AddEntry(cutoffSpot,
-        TString::Format("P at E ~ 1%% = %.2f%%", maxPurNearOneEff*100), "l");
+        TString::Format("P at E ~ 0.9%% = %.2f%%", maxPurNearOneEff*100), "l");
     leg->AddEntry((TObject*)0, TString::Format("BDT cut = %.1f", scoreNearOneEff), "");
     leg->Draw();
 
-    //g_pur_vs_BDT_score->SetLineColor(kViolet-5);
-    //g_pur_vs_BDT_score->SetLineWidth(3);
-    //g_pur_vs_BDT_score->Draw("ALP");   // Axes + Line + Points
-    //g_FOM1_vs_BDT_score->SetLineColor(kBlack);
-    //g_FOM1_vs_BDT_score->SetLineWidth(3);
-    //g_FOM1_vs_BDT_score->Draw("LP same");
-    //g_FOM2_vs_BDT_score->SetLineColor(kSpring-5);
-    //g_FOM2_vs_BDT_score->SetLineWidth(3);
-    //g_FOM2_vs_BDT_score->Draw("LP same");
-    //g_eff_vs_BDT_score->SetLineColor(kAzure-5);
-    //g_eff_vs_BDT_score->SetLineWidth(3);
-    //g_eff_vs_BDT_score->Draw("LP same");
-    //g_effStatErr_vs_BDT_score->SetLineColor(kBrown-5);
-    //g_effStatErr_vs_BDT_score->SetLineWidth(3);
-    //g_effStatErr_vs_BDT_score->Draw("LP same");
-    //g_ExP_vs_BDT_score->SetLineColor(kOrange-5);
-    //g_ExP_vs_BDT_score->SetLineWidth(3);
-    //g_ExP_vs_BDT_score->Draw("LP same");
-    //TLine *cutoffSpot = new TLine(scoreNearOneEff, gPad->GetUymin(), scoreNearOneEff, gPad->GetUymax());
-    //cutoffSpot->SetLineColor(kRed);
-    //cutoffSpot->SetLineWidth(3);
-    //cutoffSpot->Draw("LP same");
-
-    //TLegend *leg = new TLegend(0.7, 0.7, 0.9, 0.9);
-    //leg->AddEntry(g_pur_vs_BDT_score, "Purity");
-    //leg->AddEntry(g_eff_vs_BDT_score, "Efficiency (x10)");
-    //leg->AddEntry(g_FOM1_vs_BDT_score, "Sig/sqrt(sig+bkg) (/100)");
-    //leg->AddEntry(g_FOM2_vs_BDT_score, "E*(P^2) (x100)");
-    //leg->AddEntry(g_effStatErr_vs_BDT_score, "Statistical Error in Eff.");
-    //leg->AddEntry(g_ExP_vs_BDT_score, "E*P (x100)");
     ////Highest purity above 10%% stat. precision in efficiency = %.2f%%", maxPurNearOneEff*100), "l");
     //leg->AddEntry(cutoffSpot, TString::Format("Highest purity when efficiency is at or above 1%% = %.2f%%", maxPurNearOneEff*100), "l");
     //leg->AddEntry((TObject*)0, TString::Format("at BDT cutoff score of %.3f", scoreNearOneEff), "");

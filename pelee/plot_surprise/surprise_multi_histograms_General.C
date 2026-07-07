@@ -217,7 +217,7 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
 
         // Get percentage makeup
 	int Nbins = hist_var[10]->GetNbinsX();
-	double all = hist_var[10]->Integral(0,Nbins+1);
+	double all = hist_var[10]->Integral(0,Nbins+1);   // does this only work for hists that aren't ever negative?!?
         double integrals[numHists];
         for(int i = 0; i < numHists; i++) {
 	  Nbins = hist_var[i]->GetNbinsX();
@@ -263,11 +263,11 @@ void surprise_multi_histograms_General(const char* file1, const char* file2, con
         // CHANGED: skip i==4 and i==8 in legend loop
         for(int i=1; i<numHists-1; i++) {
           if (i == 4 || i == 8) continue;
-          legend->AddEntry(hist_var[i], TString::Format("%s = %.1f%%", legend_labels[i], (integrals[i]/all)*100), "f");
-          //legend->AddEntry(hist_var[i], TString::Format("%s", legend_labels[i]), "f");
+          //legend->AddEntry(hist_var[i], TString::Format("%s = %.1f%%", legend_labels[i], (integrals[i]/all)*100), "f");
+          legend->AddEntry(hist_var[i], TString::Format("%s", legend_labels[i]), "f");
         }
-	legend->AddEntry(hist_var[0], TString::Format("%s = %.1f%%", legend_labels[0], (integrals[0]/all)*100), "f");
-        //legend->AddEntry(hist_var[0], TString::Format("%s", legend_labels[0]), "f");
+	//legend->AddEntry(hist_var[0], TString::Format("%s = %.1f%%", legend_labels[0], (integrals[0]/all)*100), "f");
+        legend->AddEntry(hist_var[0], TString::Format("%s", legend_labels[0]), "f");
         legend->Draw();
 
         c->Update(); c->Draw();

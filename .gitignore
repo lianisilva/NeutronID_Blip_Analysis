@@ -39,5 +39,7 @@ condor_logs/
 GENIE/Generator/tmp/
 GENIE/Generator/obj/
 GENIE/Generator/lib/
-
+# Saved plots/images
+*.png
+*.pdf
 

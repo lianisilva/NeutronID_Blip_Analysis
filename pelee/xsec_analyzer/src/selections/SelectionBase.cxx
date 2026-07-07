@@ -12,8 +12,10 @@ SelectionBase::SelectionBase( const std::string& sel_name ) {
 
   event_number_ = 0;
 
-  fv_true_ = { BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS };
-  fv_reco_ = { BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS };
+  fv_ = { BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS };
+
+  //fv_true_ = { BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS };
+  //fv_reco_ = { BOGUS, BOGUS, BOGUS, BOGUS, BOGUS, BOGUS };
 
 }
 

@@ -347,6 +347,9 @@ void set_event_output_branch_addresses(TTree& out_tree, AnalysisEvent& ev,
   set_output_branch_address( out_tree, "mc_ccnc", &ev.mc_nu_ccnc_,
     create, "mc_ccnc/I" );
 
+  set_output_branch_address( out_tree, "n_pfps", &ev.n_pfps_,
+    create, "n_pfps/I" );
+
   //set_output_branch_address( out_tree, "mc_interaction",
   //  &ev.mc_nu_interaction_type_, create, "mc_interaction/I" );
 
