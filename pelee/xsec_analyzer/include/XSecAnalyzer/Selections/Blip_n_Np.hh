@@ -21,16 +21,26 @@
 
 private:
 
-  // Preselection flags
+  // numuCC preselection flags
   bool sel_reco_vertex_in_FV_      = false;
   bool sel_topo_cut_passed_        = false;
   bool sel_crt_veto_passed_        = false;
   bool sel_cosmic_ip_cut_passed_   = false;
 
-  // Muon candidate flag
+  // muon candidate flag
   bool sel_has_muon_candidate_     = false;
+
   bool sel_nu_mu_cc_               = false;
 
+  // blip preselection flags
+  bool blip_not_touching_trk_	   = false;
+  bool blip_far_from_trk_	   = false;
+  bool blip_not_by_dead_wire_	   = false;
+  bool blip_inside_FV_		   = false;
+  bool blip_far_from_vtx_	   = false;
+  bool blip_outside_shr_	   = false;
+
   int  muon_candidate_idx_         = -1;
+  MyPointer<std::vector<int>> blip_idx_v_;
 
 };

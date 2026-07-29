@@ -39,8 +39,16 @@ void set_event_branch_addresses(TTree& etree, AnalysisEvent& ev)
   SetBranchAddress(etree, "n_showers", &ev.num_showers_ );
 
   // Blip variables
-  set_object_input_branch_address( etree, "blip_energy", ev.blip_energy_ );
+  SetBranchAddress(etree, "nblips_saved", &ev.nblips_saved_ );
+  set_object_input_branch_address( etree, "blip_touchtrk", blip_touchtrk_ );
+  set_object_input_branch_address( etree, "blip_proxtrkdist", blip_proxtrkdist_ );
+  set_object_input_branch_address( etree, "blip_pl0_bydeadwire", blip_pl0_bydeadwire_ );
+  set_object_input_branch_address( etree, "blip_pl1_bydeadwire", blip_pl1_bydeadwire_ );
+  set_object_input_branch_address( etree, "blip_pl2_bydeadwire", blip_pl2_bydeadwire_ );
   set_object_input_branch_address( etree, "blip_x", ev.blip_x_ );
+  set_object_input_branch_address( etree, "blip_y", ev.blip_y_ );
+  set_object_input_branch_address( etree, "blip_z", ev.blip_z_ );
+  set_object_input_branch_address( etree, "blip_energy", ev.blip_energy_ );
   set_object_input_branch_address( etree, "blip_true_ncategory", ev.blip_true_ncategory_ );
   set_object_input_branch_address( etree, "blip_trkid", ev.blip_trkid_ );
 
@@ -296,11 +304,20 @@ void set_event_output_branch_addresses(TTree& out_tree, AnalysisEvent& ev,
   // *** Branches copied directly from the input ***
 
   // Blip variables
+  set_output_branch_address( out_tree, "nblips_saved", &ev.nblips_saved_, create,
+    "nblips_saved/I" );
+
   set_object_output_branch_address< std::vector<float> >( out_tree, "blip_energy",
     ev.blip_energy_, create );//, "blip_energy" );
 
   set_object_output_branch_address< std::vector<float> >( out_tree, "blip_x",
     ev.blip_x_, create );//, "blip_x" );
+
+  set_object_output_branch_address< std::vector<float> >( out_tree, "blip_y",
+    ev.blip_y_, create );
+
+  set_object_output_branch_address< std::vector<float> >( out_tree, "blip_z",
+    ev.blip_z_, create );
 
   set_object_output_branch_address< std::vector<int> >( out_tree, "blip_true_ncategory",
     ev.blip_true_ncategory_, create );//, "blip_true_ncategory" );

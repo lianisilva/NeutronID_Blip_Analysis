@@ -82,6 +82,16 @@ bool Blip_n_Np::selection( AnalysisEvent* event ) {
 //          << " cosmicdist=" << event->_closestNuCosmicDist_
 //          << "\n";
 
+    // Blip loop
+    //for( int i=0; i<event->nblips_saved_; ++i ) {}
+    //std::vector<int>v indices_v(Nblips+1);
+    //std::cout << "nblips_saved_ = " << event->nblips_saved_ << std::endl;
+    std::vector<int> blip_indices(event->nblips_saved_);
+    //*blip_idx_v_->resize(event->nblips_saved_+1);
+    std::iota(blip_indices.begin(), blip_indices.end(), 0);
+    *blip_idx_v_ = blip_indices;
+    //for( int i=0; i<blip_indices.size(); i++ ) { std::cout<<blip_indices[i]; }
+
     if ( !sel_reco_vertex_in_FV_ || !sel_topo_cut_passed_
       || !sel_crt_veto_passed_   || !sel_cosmic_ip_cut_passed_ ) {
         return false;
@@ -131,6 +141,7 @@ void Blip_n_Np::define_output_branches() {
   set_branch( &sel_has_muon_candidate_,   "has_muon_candidate" );//,   kBool );
   set_branch( &sel_nu_mu_cc_,             "nu_mu_cc" );//,             kBool );
   set_branch( &muon_candidate_idx_,       "muon_candidate_idx" );//,   kInteger );
+  SetBranch( blip_idx_v_,		  "blip_idx_v", kSTDVector );
 }
 
 void Blip_n_Np::reset() {
@@ -143,6 +154,7 @@ void Blip_n_Np::reset() {
   sel_has_muon_candidate_   = false;
   sel_nu_mu_cc_             = false;
   muon_candidate_idx_       = -1;
+  // we don't reset the vectors
 }
 
 void Blip_n_Np::define_category_map() {

@@ -416,7 +416,8 @@
         //============================== CUTS ==============================//
         if( blip_touchtrk->at(i) || dist_to_trk <= 1 || !IsInFV_Exact(blip_loc) ) continue;
         if( blip_pl0_bydeadwire->at(i) == 1 || blip_pl1_bydeadwire->at(i) == 1 || blip_pl2_bydeadwire->at(i) == 1 ) continue;
-        if( dist >= 100 ) continue; //if( density < Fit_Function_PID_Cut(blipE) ) continue; if( blipE > 3 ) continue;
+        if( dist >= 100 ) continue; //if( density < Fit_Function_PID_Cut(blipE) ) continue;
+	if( blipE <= 3 ) continue;
 
 	allIDX = -9; mom_trkID = -9; mom_isPrimary = false; mom_allIDX = -9; mom_pdg = -9;
 	auto it = map_allTrkID_partIDX.find(g4id);

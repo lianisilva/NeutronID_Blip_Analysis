@@ -123,6 +123,7 @@
   std::vector<float>       * trk_pfp_id_v = 0;
   std::vector<float>	   * trk_mcs_muon_mom_v = 0;
   std::vector<float>	   * trk_energy_proton_v = 0;
+  std::vector<float>       * trk_id = 0;
 
   std::vector<float>	   * shr_start_x_v;
   std::vector<float>	   * shr_start_y_v;
@@ -130,8 +131,8 @@
   std::vector<float>	   * shr_px_v;
   std::vector<float>	   * shr_py_v;
   std::vector<float>	   * shr_pz_v;
-  std::vector<float>	   * shr_dist_v;
-  std::vector<float>       * shr_openangle_v;
+  //std::vector<float>	   * shr_dist_v;
+  //std::vector<float>       * shr_openangle_v;
   //float       shr_openangle;
   std::vector<float>       * shr_energy_y_v;
     // Shower start distance from reco neutrino vertex (pre-calculated for
@@ -191,6 +192,7 @@
 
   TH2D* h_trueNeutronEvsProtonE;
   TH1D* h_trueNeutronE;
+  TH1D* h_trueSigNeutronE;
   TH1D* h_preFoundNeutronE;
   TH1D* h_foundNeutronE;
   TH2D* h_trueNeutronEvsRecoAngle;
@@ -237,6 +239,10 @@
   TH1D* h_prTrksPerE;
   TH1D* h_prBlipsPerE;
   TH1D* h_selectedsMomE;
+  TH1D* h_signalBlipRecoE;
+  TH2D* h_Np_vs_Nn;
+
+  TH1D* h_trkID_maybe;
 
   TGraph* gr_signal_E_ds;
   TGraph* gr_elec_E_ds;
@@ -343,25 +349,71 @@
   }
 
   // Counting number of blips in each energy bin to calculate efficiency per energy range
-  std::tuple<float, float, int> effPurBelowEnergy( TH1D* trueSelectedEnergyHist, TH1D* totalEnergyHist, TH1D* allSelectedEnergyHist, int neutronEnergyLimit ) {
-    int bin_lim = trueSelectedEnergyHist->FindFixBin(neutronEnergyLimit);
-    float nTruSelectedBelowE = trueSelectedEnergyHist->Integral(0,bin_lim);
-    float nTotalBelowE = totalEnergyHist->Integral(0,bin_lim);
-    float nAllSelectedBelowE = allSelectedEnergyHist->Integral(0,bin_lim);
-    float eff = nTruSelectedBelowE/nTotalBelowE*100;
-    float pur = nTruSelectedBelowE/nAllSelectedBelowE*100;
-    return {eff, pur, nTruSelectedBelowE};
-  }
+//  std::tuple<float, float, int> effPurBelowEnergy( TH1D* trueSelectedEnergyHist, TH1D* totalEnergyHist, TH1D* allSelectedEnergyHist, int neutronEnergyLimit, int blipEnergyLimit ) {
+//    int bin_lim = trueSelectedEnergyHist->FindFixBin(neutronEnergyLimit);
+//    float nTruSelectedBelowE = trueSelectedEnergyHist->Integral(0,bin_lim);
+//    float nTotalBelowE = totalEnergyHist->Integral(0,bin_lim);
+//    float nAllSelectedBelowE = allSelectedEnergyHist->Integral(0,bin_lim);
+//    float eff = nTruSelectedBelowE/nTotalBelowE*100;
+//    float pur = nTruSelectedBelowE/nAllSelectedBelowE*100;
+//    return {eff, pur, nTruSelectedBelowE};
+//  }
+//
+//  std::tuple<float, float, int> effPurAboveEnergy( TH1D* trueSelectedEnergyHist, TH1D* totalEnergyHist, TH1D* allSelectedEnergyHist, int neutronEnergyMin, int blipEnergyLimit ) {
+//    int bin_min = trueSelectedEnergyHist->FindFixBin(neutronEnergyMin);
+//    float nTruSelectedAboveE = trueSelectedEnergyHist->Integral( bin_min, trueSelectedEnergyHist->GetNbinsX() );
+//    float nTotalAboveE = totalEnergyHist->Integral( bin_min, totalEnergyHist->GetNbinsX() );
+//    float nAllSelectedAboveE = allSelectedEnergyHist->Integral( bin_min, allSelectedEnergyHist->GetNbinsX() );
+//    float eff = nTruSelectedAboveE/nTotalAboveE*100;
+//    float pur = nTruSelectedAboveE/nAllSelectedAboveE*100;
+//    return {eff, pur, nTruSelectedAboveE};
+//  }
 
-  std::tuple<float, float, int> effPurAboveEnergy( TH1D* trueSelectedEnergyHist, TH1D* totalEnergyHist, TH1D* allSelectedEnergyHist, int neutronEnergyMin ) {
-    int bin_min = trueSelectedEnergyHist->FindFixBin(neutronEnergyMin);
-    float nTruSelectedAboveE = trueSelectedEnergyHist->Integral( bin_min, trueSelectedEnergyHist->GetNbinsX() );
-    float nTotalAboveE = totalEnergyHist->Integral( bin_min, totalEnergyHist->GetNbinsX() );
-    float nAllSelectedAboveE = allSelectedEnergyHist->Integral( bin_min, totalEnergyHist->GetNbinsX() );
+std::tuple<float, float, int> effPurBelowEnergy(
+    TH1D* trueSelectedEnergyHist,   // h_foundNeutronE (true neutron E)
+    TH1D* totalEnergyHist,          // h_trueNeutronE (true neutron E)
+    TH1D* signalBlipRecoEHist,      // h_signalBlipRecoE (reco blip E) -- NEW
+    TH1D* allSelectedEnergyHist,    // h_selectedsMomE, now filled with blipE
+    int neutronEnergyLimit,
+    int blipEnergyLimit
+) {
+    // Efficiency: true neutron energy axis
+    int bin_lim_true = trueSelectedEnergyHist->FindFixBin(neutronEnergyLimit);
+    float nTruSelectedBelowE = trueSelectedEnergyHist->Integral( 1, bin_lim_true );   // start at 1, skip underflow
+    float nTotalBelowE = totalEnergyHist->Integral( 1, bin_lim_true );
+    float eff = nTruSelectedBelowE/nTotalBelowE*100;
+
+    // Purity: reco blip energy axis
+    int bin_lim_reco = signalBlipRecoEHist->FindFixBin(blipEnergyLimit);
+    float nSignalBelowE = signalBlipRecoEHist->Integral( 1, bin_lim_reco );
+    float nAllSelectedBelowE = allSelectedEnergyHist->Integral( 1, bin_lim_reco );
+    float pur = nSignalBelowE/nAllSelectedBelowE*100;
+
+    return {eff, pur, nTruSelectedBelowE};
+}
+
+std::tuple<float, float, int> effPurAboveEnergy(
+    TH1D* trueSelectedEnergyHist,   // h_foundNeutronE (true neutron E)
+    TH1D* totalEnergyHist,          // h_trueNeutronE (true neutron E)
+    TH1D* signalBlipRecoEHist,      // h_signalBlipRecoE (reco blip E) -- NEW
+    TH1D* allSelectedEnergyHist,    // h_selectedsMomE, now filled with blipE
+    int neutronEnergyMin,
+    int blipEnergyMin
+) {
+    // Efficiency: true neutron energy axis
+    int bin_min_true = trueSelectedEnergyHist->FindFixBin(neutronEnergyMin);
+    float nTruSelectedAboveE = trueSelectedEnergyHist->Integral( bin_min_true, trueSelectedEnergyHist->GetNbinsX() );
+    float nTotalAboveE = totalEnergyHist->Integral( bin_min_true, totalEnergyHist->GetNbinsX() );
     float eff = nTruSelectedAboveE/nTotalAboveE*100;
-    float pur = nTruSelectedAboveE/nAllSelectedAboveE*100;
+
+    // Purity: reco blip energy axis
+    int bin_min_reco = signalBlipRecoEHist->FindFixBin(blipEnergyMin);
+    float nSignalAboveE = signalBlipRecoEHist->Integral( bin_min_reco, signalBlipRecoEHist->GetNbinsX() );
+    float nAllSelectedAboveE = allSelectedEnergyHist->Integral( bin_min_reco, allSelectedEnergyHist->GetNbinsX() );
+    float pur = nSignalAboveE/nAllSelectedAboveE*100;
+
     return {eff, pur, nTruSelectedAboveE};
-  }
+}
 
   //float effOrPurAboveBelowEnergy( TH1D* selectedEnergyHist, TH1D* totalEnergyHist, TH1D* trueSigEnergyHist, int neutronEnergyMin, int neutronEnergyLimit ) {
   //  int bin_min = selectedEnergyHist->FindFixBin(neutronEnergyMin);
@@ -483,6 +535,7 @@
     overlayNuTree->SetBranchAddress("trk_llr_pid_score_v", &trk_llr_pid_score_v);
     overlayNuTree->SetBranchAddress("trk_score_v",	    &trk_score_v);
     overlayNuTree->SetBranchAddress("trk_pfp_id_v",	    &trk_pfp_id_v);
+    overlayNuTree->SetBranchAddress("trk_id",         &trk_id);
 
     //overlayNuTree->SetBranchAddress("n_showers",           &n_showers);
     overlayNuTree->SetBranchAddress("shr_start_x_v",	    &shr_start_x_v);
@@ -631,7 +684,8 @@
     //  std::vector<int>         * blip_pl2_nwires = 0;
 
     neutronEnergy_plots->cd();
-    h_trueNeutronE		= new TH1D("trueNeutronE","True Neutron Energy;MeVee",600,0,600); h_trueNeutronE->Sumw2();
+    h_trueNeutronE		= new TH1D("trueNeutronE","All Primary Neutrons True Energy;MeV",600,0,600); h_trueNeutronE->Sumw2();
+    h_trueSigNeutronE		= new TH1D("trueSigNeutronE","Signal Neutron True Energy (Energy of Primary Neutrons that Produce Protons);MeV",600,0,600);
     h_preFoundNeutronE		= new TH1D("preFoundNeutronE","Preselection Identified Neutron True Kinetic Energy;MeV",600,0,600); h_preFoundNeutronE->Sumw2();
     h_foundNeutronE		= new TH1D("foundNeutronE","Identified Neutron True Kinetic Energy;MeV",600,0,600); h_foundNeutronE->Sumw2();
     h_trueNeutronEvsProtonE	= new TH2D("trueNeutronEvsProtonE","True Proton Energy vs True Neutron Energy;Primary Neutron Kinetic Energy [MeV];Proton Kinetic Energy [MeV]",60,0,300,60,0,300); 
@@ -685,6 +739,12 @@
     h_prBlipsPerE	= new TH1D("prBlipsPerE","Number of Reconstructed Objects vs True Energy of Protons From Primary Neutrons;Proton Kinetic Energy [MeV];Number of Reconstructed Objects",100,0,200);
     //h_bdt_numuCC	= new TH1D("bdt_numuCC","NDT numuCC;score?",1000,9900,10050);
     h_selectedsMomE     = new TH1D("selectedsMomE","True Energy of the Mothers of All Selected Blips",600,0,600);
+    h_signalBlipRecoE	= new TH1D("selectedsMomE","Reco Energy of All Selected Blips",50,0,50);
+    h_Np_vs_Nn		= new TH2D("Np_vs_Nn", "Primary Neutron Proton Daughters vs Neutron Daughters;Nn;Np",16,0,16,12,0,12);
+    h_Np_vs_Nn->SetOption("colz text"); h_Np_vs_Nn->SetMarkerSize(1.5);  // Text size
+    h_Np_vs_Nn->SetMarkerColor(kBlack); // Text color
+
+    h_trkID_maybe	= new TH1D("trkID_maybe",";;",30,0,30); 
 
     gr_signal_E_ds = new TGraph(); gr_signal_E_ds->SetNameTitle("signal_E_ds", "Blip Energy Deposition Density;Reconstructed Blip Energy (E_{blip}) [MeVee];E_{blip}/ds [MeVee/cm]");
     gr_elec_E_ds = new TGraph(); gr_elec_E_ds->SetNameTitle("gr_elec_E_ds", "Blip Energy Deposition Density;Reconstructed Blip Energy (E_{blip}) [MeVee];E_{blip}/ds [MeVee/cm]");
@@ -745,6 +805,8 @@
     float neutronIDprBlips=0;
     //float oldMethodNeutronEff=0;
     float signal_blips=0;
+    float sigBelow50TruE=0;
+    int totalSigProtons=0;
     int selectedEvents=0;
     int nonSelected=0;
     int numEvents_numuCC=0;
@@ -758,12 +820,13 @@
     float nTrueSignalEvents=0; float nTotalTaggedEvents=0; float nTotalTrueTaggedEvents;
     float trueSignalPOT=0; float totalTaggedPOT=0;
     std::unordered_map<int, std::vector<int>> map_n_p;
+    std::unordered_map<int, std::vector<int>> map_n_n;
     int category;
 
     //============================== MC EVENT LOOP ==============================//
     if( maxEvents < 0 ) maxEvents = numEvents;
     for(int iEvent = 0; iEvent < maxEvents; iEvent++ ){
-      //if( iEvent > 10000 ) break;
+      //if( iEvent > 50000 ) break;
       //if( iEvent < 100000  && iEvent % 2 == 0 ) continue;
       selectedEvents++;
       overlayNuTree->GetEntry(iEvent);
@@ -783,7 +846,7 @@
 
       map_allTrkID_partIDX.clear();
       map_allTrkID_momTrkID.clear();
-      map_n_p.clear();
+      map_n_p.clear(); map_n_n.clear();
 
       //if( IsInFV_Buffer(reco_nu_vtx) == false ) {
       //std::cout<<"Neutrino vtx location: ("<<reco_nu_vtx.X()<<", "<<reco_nu_vtx.Y()<<", "<<reco_nu_vtx.Z()<<
@@ -819,7 +882,6 @@
 	    //if( numuCC == true ) std::cout<<"Jeez, two big 'ol muons?!"<<std::endl;
 	    numuCC = true;
 	    }
-	  trk_id.push_back(trk_pfp_id_v->at(i_pfp));
 	}
 
 	//if( pfng2semlabel->at(i_pfp) == 0 ) {
@@ -848,7 +910,7 @@
           //	       "\nShower (dx, dy, dz) = ("<<shr_distVec.x()<<", "<<shr_distVec.y()<<", "<<shr_distVec.z()<<
           //           "\nStart (x, y, z) = ("<<shrStart.x()<<", "<<shrStart.y()<<", "<<shrStart.z()<<
           //           "\nEnd (x, y, z) = ("<<shrEnd.x()<<", "<<shrEnd.y()<<", "<<shrEnd.z()<<")\n\n";
-	}
+	} else trk_id.push_back(trk_pfp_id_v->at(i_pfp));//h_trkID_maybe->Fill(trk_pfp_id_v->at(i_pfp));//
       }
       if( 1 && numuCC == false ) continue;
       numEvents_numuCC++; nShrs_per_numuCC_event.push_back(n_shrs);
@@ -858,7 +920,7 @@
 
 	int mc_trkID = all_mc_trkid->at(i); float mc_E = all_mc_E->at(i);
 	int mc_pdg = all_mc_pdg->at(i); int mc_momTrkID = all_mc_mother->at(i);
-	bool mc_isPrimary = mc_momTrkID == 0;
+	bool mc_isPrimary = mc_momTrkID == 0; float mc_momE =all_mc_E->at( map_allTrkID_partIDX[mc_momTrkID] );
 
 	map_allTrkID_partIDX[mc_trkID] = i;
 	map_allTrkID_momTrkID[mc_trkID] = mc_momTrkID;
@@ -876,20 +938,22 @@
           if( mc_isPrimary ) {   // primary neutrons
             total_nu_Ns++; num_nu_Ns++;
 	    h_trueNeutronE->Fill( (mc_E - 0.93957)*1000 );   // subtract neutron rest mass energy and convert from GeV to MeV
-            map_n_p[mc_trkID].clear();
-          }
+            map_n_p[mc_trkID].clear(); map_n_n[mc_trkID].clear();
+          } else if( map_n_n.count(mc_momTrkID) ) map_n_n[mc_momTrkID].push_back(mc_trkID);
         }
 
 	auto it = map_n_p.find(mc_momTrkID);
 	if( mc_pdg == 2212 ) {   // protons
 	  if( mc_isPrimary ) hasFSprot = true;
 	  else if( it != map_n_p.end() ) {   // from primary neutron mothers
-	    it->second.push_back(mc_trkID); h_trueSignalX->Fill(all_mc_endx->at(i));
-	    if( std::find( trk_id.begin(), trk_id.end(),  mc_trkID ) != trk_id.end() ) h_prTrksPerE->Fill( (mc_E- 0.93827)*1000 );
-	    //if( (all_mc_E->at(map_allTrkID_partIDX[mc_momTrkID]) - 0.93957)*1000 < 5 ) std::cout<<"LESS THAN 5 MeV"<<std::endl; else std::cout<<"more than 5 MeV"<<std::endl;
+	    it->second.push_back(mc_trkID); totalSigProtons++;
+	    h_trueSignalX->Fill(all_mc_endx->at(i));
+	    h_trueSigNeutronE->Fill( (mc_momE - 0.93957)*1000 );
+	    if( std::find( trk_id.begin(), trk_id.end(),  mc_trkID ) != trk_id.end() ) h_prTrksPerE->Fill( (mc_E - 0.93827)*1000 );
+	    if( (mc_E - 0.93827)*1000 < 50 ) sigBelow50TruE++;
 	    //std::cout<<"FS neutron energy: "<<(all_mc_E->at(map_allTrkID_partIDX[mc_momTrkID]) - 0.93957)*1000<<"\nDaughter proton energy: "<<(all_mc_E->at(i) - 0.93827)*1000<<"\n";
 	    //std::cout<<"Process: "<<all_mc_process->at(i).c_str()<<"\n\n";
-            h_trueNeutronEvsProtonE->Fill( (all_mc_E->at(map_allTrkID_partIDX[mc_momTrkID]) - 0.93957)*1000, ( mc_E - 0.93827)*1000 );
+            h_trueNeutronEvsProtonE->Fill( (mc_momE - 0.93957)*1000, ( mc_E - 0.93827)*1000 );
 	  }
         }
 
@@ -962,13 +1026,11 @@
 
 	if( mom_isPrimary && pdg == 2212 && mom_pdg == 2112 ) {  // signal blips (protons from primary neutron moms)
 	  h_signal_ZY->Fill(blipY, blipZ); h_signal_ZX->Fill(blipX, blipZ); h_trueSignalY->Fill(blipY); h_trueSignalZ->Fill(blipZ);
-
+	  h_prBlipsPerE->Fill( trueE );//  - 0.93827)*1000 );
 	  h_trueSig_theta->Fill(reco_theta*TMath::RadToDeg()); h_trueSig_cosTheta->Fill( cos_theta );
 	  h_trueNeutronEvsCosTheta->Fill( cos_theta, mom_E );
 
 	  if( !thisTrueEvtWasTagged ) { nTrueSignalEvents++; thisTrueEvtWasTagged=true; } //trueSignalPOT += map_run_pot[run]; }
-
-	  h_prBlipsPerE->Fill(trueE);
 
 	  if( blip_trkid->at(i) > -1 ) numSigBlipsAlsoTrks++;
 	}
@@ -1086,7 +1148,7 @@
 	  if( blipE <= 10 && !nearDeath && !isInShower && pred_sig ) gr_signal_E_ds->SetPoint(gr_signal_E_ds->GetN(), blipE, density);
 	  if( !nearDeath && !isInShower && isProton && pred_sig ) {   // SIGNAL PROTONS
 	    signal_blips++; h_signal_X->Fill(all_mc_endx->at(allIDX)); h_signal_Y->Fill(blipY); h_signal_Z->Fill(blipZ);
-	    h_foundNeutronE->Fill( mom_E );
+	    h_foundNeutronE->Fill( mom_E ); h_signalBlipRecoE->Fill( blipE );
 	    //auto it = std::find(tagged_neutron_trkIDs.begin(), tagged_neutron_trkIDs.end(), mom_trkID);
             //if( it == tagged_neutron_trkIDs.end() ) { neutronIDprBlips++; tagged_neutron_trkIDs.push_back(mom_trkID); }
 	    if( tagged_neutron_trkIDs.insert(mom_trkID).second ) { neutronIDprBlips++; }   // true if newly inserted, same as above
@@ -1114,7 +1176,8 @@
 		  nTotalTaggedEvents++; if( thisTrueEvtWasTagged ) nTotalTrueTaggedEvents++;
 		  thisTotalEvtWasTagged=true; //totalTaggedPOT += map_run_pot[run];
 		}
-		totalSelectedBlips++; if( mom_E >= 0 ) h_selectedsMomE->Fill( mom_E );
+		totalSelectedBlips++; //if( mom_E >= 0 )
+		h_selectedsMomE->Fill( blipE );
 		// Fill "all blips" histogram
                 h_recoVtxDist[10]->Fill(dist); h_blipE[10]->Fill(blipE);
                 h_Edensity[10]->Fill(density); h_energy_res[10]->Fill(E_res);
@@ -1157,18 +1220,27 @@
 	  else if( evtIs_xpxn ) h_nBlips_xpxn->Fill(totalSelectedBlips);
 	    else h_nBlips_0pxn->Fill(totalSelectedBlips); //std::cout<<evtIs_0pxn<<std::endl; }
 
-      //std::cout<<"This event is: ";
-      //std::map<std::string, bool> variables = {
-      //    {"xp0n", evtIs_xp0n},
-      //    {"0p0n", evtIs_0p0n},
-      //    {"xpxn", evtIs_xpxn},
-      //    {"0pxn", evtIs_0pxn}
-      //};
-      //for (const auto& pair : variables) { if (pair.second == true) std::cout << pair.first << std::endl; }
+      // fill Np vs Nn plot
+      for (const auto& n_pair : map_n_n) { 
+        int n_g4id = n_pair.first; int Nn = n_pair.second.size();
+        auto p_it = map_n_p.find(n_g4id);
+        if (p_it != map_n_p.end()) {
+          int Np = p_it->second.size(); h_Np_vs_Nn->Fill(Nn, Np);
+        } 
+      }
 
       h_BlipsPerEvent->Fill(nblips_saved); if( nBlipsInShr > 0 ) h_nBlipsInShr->Fill(nBlipsInShr);
 
     }//end events loop
+
+
+    // Get projection of y-axis bins [ybin_low, ybin_high] onto x-axis
+    int total_N_intrxns = h_Np_vs_Nn->GetEntries();
+    TH1D* proj_0p = h_Np_vs_Nn->ProjectionX("proj0p", 1, 1);
+    TH1D* proj_1p = h_Np_vs_Nn->ProjectionX("proj1p", 2, 2);
+    TH1D* proj_2p = h_Np_vs_Nn->ProjectionX("proj2p", 3, 3);
+    double sum_0p = proj_0p->Integral(), sum_1p = proj_1p->Integral(), sum_2p = proj_2p->Integral();
+    delete proj_0p; delete proj_1p; delete proj_2p; //sum_1p /= total_N_intrxns; sum_2p /= total_N_intrxns;
 
     float events_w_overOneShr = std::count_if(nShrs_per_numuCC_event.begin(), nShrs_per_numuCC_event.end(), greater_than_1);
     float events_w_oneShr = std::count(nShrs_per_numuCC_event.begin(), nShrs_per_numuCC_event.end(), 1);
@@ -1197,12 +1269,21 @@
 	     //<<"Percent of numuCC events with more than one shower: "<<100*events_w_overOneShr/numEvents_numuCC<<"%\n"
              //<<"Percent of numuCC events without any showers: "<<100*events_w_noShr/numEvents_numuCC<<"%\n\n"
 
+	     <<"Total primary (n,p) protons: "<<totalSigProtons<<" protons\n"
+	     <<"Total primary (n,p) protons below 50 MeV true energy: "<<sigBelow50TruE<<" protons\n"
+	     <<"^Percent of (n,p) protons below 50 MeV^: "<<sigBelow50TruE/totalSigProtons*100<<"%\n\n"
+
 	     <<"Total blips: "<<totalBlips<<" blips\n"
 	     <<"Number of true signal blips: "<<numTrueSigBlips<<" blips\n"
 	     <<"Number of selected signal blips: "<<signal_blips<<" blips\n"
 	     <<"Total selected blips: "<<totalSelectedBlips<<" blips\n"
-	     <<"Number of neutrons tagged by selected signal blips: "<<neutronIDprBlips<<" blips\n"
+	     <<"Number of neutrons tagged by selected signal blips: "<<neutronIDprBlips<<" blips\n\n"
+
 	     <<"Total neutrino-induced neutrons: "<<total_nu_Ns<<" neutrons\n"
+             <<"Fraction of neutron interactions that are (n,0p) = "<<sum_0p<<"/"<<total_N_intrxns<<" = "<<sum_0p/total_N_intrxns<<"\n"
+	     <<"Fraction of neutron interactions that are (n,1p) = "<<sum_1p<<"/"<<total_N_intrxns<<" = "<<sum_1p/total_N_intrxns<<"\n"
+	     <<"Fraction of neutron interactions that are (n,2p) = "<<sum_2p<<"/"<<total_N_intrxns<<" = "<<sum_2p/total_N_intrxns<<"\n\n"
+
 	     <<"Percent of blips also reconstructed as tracks: "<<numBlipsAlsoTrks/totalBlips*100<<"%\n"
              <<"Percent of signal blips also reconstructed as tracks: "<<numSigBlipsAlsoTrks/numTrueSigBlips*100<<"%\n"
              //<<"Percent of total blips with a true g4id ALSO not protons/electrons: "<<(matchedBlips*100)/totalBlips<<"%\n\n"
@@ -1212,11 +1293,11 @@
     float eff = neutronIDprBlips/total_nu_Ns; float pur = signal_blips/totalSelectedBlips; float evt_pur = nTotalTaggedEvents/nTrueSignalEvents;
     float eff_unc = eff*sqrt( 1/neutronIDprBlips + 1/total_nu_Ns ); float pur_unc = pur*sqrt( 1/signal_blips + 1/totalSelectedBlips );
     //\nOld Efficiency: %5.5f%% +/- %.2f	oldMethodNeutronEff*100/total_nu_Ns, 1/sqrt(oldMethodNeutronEff),
-    auto [belEff, belPur, numBel] = effPurBelowEnergy( h_foundNeutronE, h_trueNeutronE, h_selectedsMomE, 100 );
-    auto [abEff, abPur, numAb] = effPurAboveEnergy( h_foundNeutronE, h_trueNeutronE, h_selectedsMomE, 100 );
-    auto [ab40Eff, ab40Pur, numAb40] = effPurAboveEnergy( h_foundNeutronE, h_trueNeutronE, h_selectedsMomE, 40 );
-    auto [ab50Eff, ab50Pur, numAb50] = effPurAboveEnergy( h_foundNeutronE, h_trueNeutronE, h_selectedsMomE, 50 );
-    auto [ab75Eff, ab75Pur, numAb75] = effPurAboveEnergy( h_foundNeutronE, h_trueNeutronE, h_selectedsMomE, 75 );
+    auto [belEff, belPur, numBel] = effPurBelowEnergy( h_foundNeutronE, h_trueNeutronE, h_signalBlipRecoE, h_selectedsMomE, 100, 20 );
+    auto [abEff, abPur, numAb] = effPurAboveEnergy( h_foundNeutronE, h_trueNeutronE, h_signalBlipRecoE, h_selectedsMomE, 100, 20 );
+    auto [ab40Eff, ab40Pur, numAb40] = effPurAboveEnergy( h_foundNeutronE, h_trueNeutronE, h_signalBlipRecoE, h_selectedsMomE, 40, 8 );
+    auto [ab50Eff, ab50Pur, numAb50] = effPurAboveEnergy( h_foundNeutronE, h_trueNeutronE, h_signalBlipRecoE, h_selectedsMomE, 50, 10 );
+    auto [ab75Eff, ab75Pur, numAb75] = effPurAboveEnergy( h_foundNeutronE, h_trueNeutronE, h_signalBlipRecoE, h_selectedsMomE, 75, 15 );
     printf( "UNDER 100 MeV efficiency and purity after selection: %5.3f%% eff., %5.3f%% pur. (%i)   \nOVER 100 MeV efficiency and purity after selection: %5.3f%% eff., %5.3f%% pur. (%i)      \nOVER 75 MeV: %5.3f%% eff., %5.3f%% pur. (%i)      \nOVER 50 MeV: %5.3f%% eff., %5.3f%% pur. (%i)      \nOVER 40 MeV: %5.3f%% eff., %5.3f%% pur. (%i)\n\n",
 	     belEff, belPur, numBel, abEff, abPur, numAb, ab75Eff, ab75Pur, numAb75, ab50Eff, ab50Pur, numAb50, ab40Eff, ab40Pur, numAb40
 	  );
@@ -1238,8 +1319,10 @@
       //h_shrBlipE_data->Scale(1.0 / h_shrBlipE_data->Integral("width")); h_shrBlipE_MC->Scale(1.0 / h_shrBlipE_MC->Integral("width"));
       //merge_plot2(h_shrBlipE_data, "Data", h_shrBlipE_MC, "MC", "Energy Spectrum of Blips Inside Showers");
       //merge_plot2(h_prBlipsPerE, "Blips", h_prTrksPerE, "Tracks", "title");
-      merge_plot2( h_prBlipsPerE, TString::Format( "%s (%.1f%%)", "Blips", (h_prBlipsPerE->GetEntries()/numTrueSigBlips)*100 ),
-		   h_prTrksPerE, TString::Format( "%s (%.1f%%)", "Tracks", (h_prTrksPerE->GetEntries()/numTrueSigBlips)*100 ), "");
+      //h_prBlipsPerE->Scale(1.0 / h_prBlipsPerE->Integral("width"));
+      //h_prTrksPerE->Scale(1.0 / h_prTrksPerE->Integral("width"));
+      merge_plot2( h_prBlipsPerE, TString::Format( "%s (%.1f%%)", "Blips", (h_prBlipsPerE->GetEntries()/totalSigProtons)*100 ),
+		   h_prTrksPerE, TString::Format( "%s (%.1f%%)", "Tracks", (h_prTrksPerE->GetEntries()/totalSigProtons)*100 ), "");
 
       //TCanvas *c2 = new TCanvas("c2", "Canvas", 800, 600);
       //h_ShrE_vs_OpAng->DrawCopy("hist");
@@ -1281,6 +1364,9 @@
       //for(double e = 0; e <= 250; e += 10) { binEdges.push_back(e); }
       // 50 MeV bins above 250
       //for(double e = 250; e <= 600; e += 50) { binEdges.push_back(e); } 
+
+      TCanvas *c4 = new TCanvas("c4", "Canvas", 800, 600);
+      h_Np_vs_Nn->DrawCopy();
 
       // Define variable bin widths so that each bin contains 80 preselection only blips and 40 final selected blips
       // Need to refine this algorithm particulary so that the 80/40 numbers are statistically based, not arbitrary as they are now

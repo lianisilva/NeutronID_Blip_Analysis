@@ -295,10 +295,15 @@ static void FillBlip_PerFileScaled1D(const RunGroup& rg,
   }
 
   // Index sources
+  //int Nblips = 0;
   int blip_idx = -1;                            // single index branch (fallback)
   if (!all_blips && !indices_branch_vec) {
     tr->SetBranchStatus(index_branch, 1);
     tr->SetBranchAddress(index_branch, &blip_idx);
+    //std::vector<int> indices_v(Nblips+1);
+    //std::iota(indices_v.begin(), indices_v.end(), 0);
+    //tr->SetBranchAddress(seq_vector, &indices_v);
+
   }
   std::vector<int>* indices_v = nullptr;       // per-event vector<int> of indices
   if (indices_branch_vec && tr->GetBranch(indices_branch_vec)) {
@@ -523,6 +528,7 @@ static void MakeBlipStack1D(const std::vector<RunGroup>& overlay_files,
                            const std::vector<RunGroup>& dirt_files,
                            const std::vector<RunGroup>& ext_files,
                            const std::vector<RunGroup>& data_files,  // NEW
+			   // Precedence: all_blips > indices_branch_vec > index_branch
                            const char* index_branch,                   // e.g. "blip_trkid"
                            const char* var_branch_vec,                 // e.g. "blip_energy"
                            const char* blip_true_ncategory,            // e.g. "blip_true_ncategory"
@@ -620,7 +626,7 @@ static void MakeBlipStack1D(const std::vector<RunGroup>& overlay_files,
   h_BNB_data.Draw("E1 SAME");
 
   double total_mc = 0.0;
-  for (auto& kv : h_by_bucket) total_mc += kv.second->Integral();
+  for (auto& kv : h_by_bucket) total_mc += kv.second->Integral(0, kv.second->GetNbinsX()+1);
 
   TLegend leg(0.30, 0.55, 0.90, 0.90);
   leg.SetBorderSize(0);
@@ -907,7 +913,7 @@ static void MakeStack1DForFlag(const std::vector<RunGroup>& overlay_files,
   std::cout << "\n=== Bucket integrals (debug) ===\n";
   double total_mc_debug = 0.0;
   for (auto& kv : h_by_bucket) {
-    double integral = kv.second->Integral();
+    double integral = kv.second->Integral(0, kv.second->GetNbinsX()+1);
     std::cout << kv.first << " : " << integral << std::endl;
     total_mc_debug += integral;
   }
@@ -940,7 +946,7 @@ static void MakeStack1DForFlag(const std::vector<RunGroup>& overlay_files,
   // 8) Legend with fractions (of total MC)
   double total_mc = 0.0;
   for (auto& kv : h_by_bucket) {
-    const double val = kv.second->Integral();
+    const double val = kv.second->Integral(0, kv.second->GetNbinsX()+1);
     if (val > 0) total_mc += val;
   }
 
@@ -950,7 +956,7 @@ static void MakeStack1DForFlag(const std::vector<RunGroup>& overlay_files,
   auto add_leg = [&](const std::string& name, const char* opt="f"){
     auto it = h_by_bucket.find(name);
     if (it==h_by_bucket.end()) return;
-    const double val = it->second->Integral();
+    const double val = it->second->Integral(0, it->second->GetNbinsX()+1);
     if (val<=0 || total_mc <= 0) return;
     const double frac = 100.0*val/total_mc;
     std::string lab = name + Form(" (%.1f%%)", frac);
@@ -1339,15 +1345,15 @@ int main() {
 
   MakeBlipStack1D(
     overlay_files, dirt_files, ext_files, data_files,   //nuwro_files,
-    "",   // this only works because we input the last parameter, index vector, which trumps this param, index int
+    "",   // can be empty ONLY if we input the last parameter, index vector, which trumps this param, index int
     "blip_energy",//"trk_len_v",
     "blip_true_ncategory",//"backtracked_pdg",
     "Reconstructed Blip Energy [MeVee]",//"Secondary Proton Candidate Track Length (cm)",
-    20, 0.0, 10.,
+    6, 0.0, 18.,
     cuts_vec,
     -1,
     false,     // true =  all_blips — iterate over every blip
-    "blip_trkid"   //nullptr = no index vec needed
+    "Blip_n_Np_blip_idx_v"    // nullptr = no index vec needed // "blip_trkid"
   );
 
   MakeBlipStack1D(
@@ -1360,7 +1366,7 @@ int main() {
     cuts_vec,
     -1,
     false,
-    "blip_trkid"//"sp_trk_ind"
+    "Blip_n_Np_blip_idx_v"//"blip_trkid"//"sp_trk_ind"
   );
 
   std::cout << "[done] Saved PNG/PDF figures normalized run-by-run to NuWro.\n";

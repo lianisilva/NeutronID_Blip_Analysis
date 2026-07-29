@@ -49,10 +49,19 @@ public:
   int num_showers_ = BOGUS_INT;
 
   // Blip variables
-  MyPointer< std::vector<float> > blip_energy_;
+  int nblips_saved_ = BOGUS_INT;
+  MyPointer< std::vector<bool> > blip_touchtrk_;
+  MyPointer< std::vector<float> > blip_proxtrkdist_;
+  MyPointer< std::vector<int> > blip_pl0_bydeadwire_;
+  MyPointer< std::vector<int> > blip_pl1_bydeadwire_;
+  MyPointer< std::vector<int> > blip_pl2_bydeadwire_;
   MyPointer< std::vector<float> > blip_x_;
+  MyPointer< std::vector<float> > blip_y_;
+  MyPointer< std::vector<float> > blip_z_;
+  MyPointer< std::vector<float> > blip_energy_;
   MyPointer< std::vector<int> > blip_true_ncategory_;
   MyPointer< std::vector<int> > blip_trkid_;
+
 
   // PFParticle properties
   MyPointer< std::vector<unsigned int> > pfp_generation_;

@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <type_traits>
+#include <numeric>
 
 // ROOT includes
 #include "TTree.h"
